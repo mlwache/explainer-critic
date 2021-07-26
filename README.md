@@ -17,7 +17,10 @@ Here you can find a [formalization and more detailed description](https://hackmd
 * [x] train on small subset (maybe 500 samples) of MNIST only, to make developing/debugging quicker.
 * [x] compute the input gradient of a some test images, and show them
 * [ ] add logging
-* [ ] finish building the "skeleton" (method stubs)
-* [ ] fill them.  
+* [x] finish building the "skeleton" (method stubs)
+* [ ] fill them.
+    * [x] first rough implementation containing lots of bugs
+    * [ ] think about tensor/list dimensions difference in explainer/critic
+    * [ ] think about which parts need to be requires_grad
 * [ ] write a few simple tests  
 * [ ] debug

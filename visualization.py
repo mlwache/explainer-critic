@@ -16,6 +16,7 @@ class Visualizer:
     @staticmethod
     def image_show(images):
         combined_image = torchvision.utils.make_grid(images)
+        # invert image for better visibility
         inverted = functional.invert(combined_image)
         # img_un_normalized = image / 2 + 0.5
         np_img = inverted.numpy()  # img_un_normalized.numpy()

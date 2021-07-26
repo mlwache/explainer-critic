@@ -16,9 +16,8 @@ from visualization import Visualizer as Vis
 
 
 def main():
-
     print('Loading Data...')
-    train_loader, test_loader = load_data()
+    train_loader, test_loader, critic_loader = load_data()
     train_images, train_labels = get_some_random_images(train_loader)
     test_images, test_labels = get_some_random_images(test_loader)
 
@@ -34,7 +33,7 @@ def main():
     Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples.')
-    explainer.train(train_loader)
+    explainer.train(train_loader, critic_loader)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.path_to_models}.')
@@ -53,7 +52,7 @@ def main():
 
 
 # noinspection PyShadowingNames
-def load_data() -> tuple[DataLoader[Any], DataLoader[Any]]:
+def load_data() -> tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     transform_mnist = transforms.Compose(
         [transforms.ToTensor(),
          torchvision.transforms.Normalize((0.1307,), (0.3081,))
@@ -79,10 +78,16 @@ def load_data() -> tuple[DataLoader[Any], DataLoader[Any]]:
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=cfg.batch_size,
                                                                 shuffle=True, num_workers=2)
     test_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
+    split = [int(len(test_set) * 0.5), int(len(test_set) * 0.5)]
+    critic_set = torch.utils.data.random_split(test_set, split)[0].dataset
+    # critic_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
+
     # print(f"test set: {test_set}")
     test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
                                                                shuffle=True, num_workers=2)
-    return train_loader, test_loader
+    critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=cfg.batch_size,
+                                                                 shuffle=True, num_workers=2)
+    return train_loader, test_loader, critic_loader
 
 
 def get_some_random_images(loader: DataLoader[Any]) -> tuple[Tensor, Tensor]:
