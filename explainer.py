@@ -14,6 +14,7 @@ from config import default_config as cfg
 from critic import Critic
 
 from net import Net
+from rtpt import RTPT
 
 
 class Explainer:
@@ -48,7 +49,7 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), cfg.path_to_models)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any]):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT):
         classification_loss: Module = cfg.loss  # actually the type should be _Loss.
         # TODO: (nice to have):
         # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
@@ -56,7 +57,7 @@ class Explainer:
 
         for epoch in range(cfg.n_epochs):
 
-            running_loss = 0.0
+            # running_loss = 0.0
             for i, data in enumerate(train_loader, 0):  # i is the index of the current batch.
 
                 # only train on a part of the samples.
@@ -82,8 +83,11 @@ class Explainer:
                 if (i + 1) % (cfg.n_train_batches / 10) == 0:
                     # running_loss_average = running_loss / (cfg.n_train_batches / 10)
                     print(f'explainer[epoch {epoch}, batch {i+1}] \n'
-                          f'Loss: {loss:.3f} = {loss_classification:.3f}(classification) + {loss_explanation:.3f}(explanation)')
-                    running_loss = 0.0
+                          f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
+                          f' + {loss_explanation:.3f}(explanation)')
+                    # running_loss = 0.0
+                if rtpt is not None:
+                    rtpt.step(subtitle=f"loss={loss:2.2f}")
 
     def explanation_loss(self, critic_loader):
         explanations = []

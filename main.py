@@ -1,4 +1,5 @@
 import warnings
+import sys
 from typing import Iterator, Any
 
 from torch import Tensor
@@ -13,27 +14,37 @@ import torch.utils.data
 from config import default_config as cfg
 from explainer import Explainer
 from visualization import Visualizer as Vis
+from rtpt import RTPT
 
 
-def main():
+def main(render=False, use_rtpt=False):
+
+    # creating rtpt object to name the process
+    rtpt = None
+    if use_rtpt:
+        rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=cfg.n_train_batches)
+        rtpt.start()
+
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
     train_images, train_labels = get_some_random_images(train_loader)
     test_images, test_labels = get_some_random_images(test_loader)
 
-    print('Here are some training images and test images!')
+    if render:
+        print('Here are some training images and test images!')
 
-    Vis.show_some_sample_images(train_images, train_labels)
-    Vis.show_some_sample_images(test_images, test_labels)
+        Vis.show_some_sample_images(train_images, train_labels)
+        Vis.show_some_sample_images(test_images, test_labels)
 
     explainer = Explainer()
 
-    print('This is what the gradient looks like before training!')
-    input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
-    Vis.amplify_and_show(input_gradient)
+    if render:
+        print('This is what the gradient looks like before training!')
+        input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
+        Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples.')
-    explainer.train(train_loader, critic_loader)
+    explainer.train(train_loader, critic_loader, rtpt)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.path_to_models}.')
@@ -46,9 +57,10 @@ def main():
     print('Evaluating the Explainer')
     explainer.evaluate(test_loader)
 
-    print('This is what the gradient looks like after training!')
-    input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
-    Vis.amplify_and_show(input_gradient)
+    if render:
+        print('This is what the gradient looks like after training!')
+        input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
+        Vis.amplify_and_show(input_gradient)
 
 
 # noinspection PyShadowingNames
@@ -100,4 +112,7 @@ def get_some_random_images(loader: DataLoader[Any]) -> tuple[Tensor, Tensor]:
 
 
 if __name__ == '__main__':
-    main()
+
+    render_enabled = (sys.argv.__contains__("--render"))
+    rtpt_enabled = (sys.argv.__contains__("--rtpt"))
+    main(render=render_enabled, use_rtpt=rtpt_enabled)
