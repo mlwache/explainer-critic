@@ -27,8 +27,8 @@ def main(render=False, use_rtpt=False):
 
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
-    train_images, train_labels = get_some_random_images(train_loader)
-    test_images, test_labels = get_some_random_images(test_loader)
+    train_images, train_labels = get_one_batch_of_images(train_loader)
+    test_images, test_labels = get_one_batch_of_images(test_loader)
 
     if render:
         print('Here are some training images and test images!')
@@ -65,14 +65,16 @@ def main(render=False, use_rtpt=False):
 
 # noinspection PyShadowingNames
 def load_data() -> tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
+    mean_mnist = 0.1307
+    std_dev_mnist = 0.3081
     transform_mnist = transforms.Compose(
         [transforms.ToTensor(),
-         torchvision.transforms.Normalize((0.1307,), (0.3081,))
+         torchvision.transforms.Normalize((mean_mnist,), (std_dev_mnist,))
          ])
     # transformation that first makes data to a tensor, and then normalizes them.
-    # the numbers for normalization are the global mean and standard deviation of MNIST
-    # I took them from here: https://nextjournal.com/gkoehler/pytorch-mnist (taking them as given for now)
-    # TODO: compute them myself, that seems more robust than taking magic numbers from the internet.
+    # I took the mean and stddev from here:
+    # https://nextjournal.com/gkoehler/pytorch-mnist (taking them as given for now)
+    # maybe TODO: compute them myself, that seems more robust than taking magic numbers from the internet.
 
     with warnings.catch_warnings():  # Ignore warning, as it's caused by the underlying functional,
         # and I think would require me to change the site-packages in order to fix it.
@@ -102,9 +104,10 @@ def load_data() -> tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     return train_loader, test_loader, critic_loader
 
 
-def get_some_random_images(loader: DataLoader[Any]) -> tuple[Tensor, Tensor]:
+def get_one_batch_of_images(loader: DataLoader[Any]) -> tuple[Tensor, Tensor]:
     data_iterator: Iterator[Any] = iter(loader)
     images: Tensor
+    labels: Tensor
     images, labels = data_iterator.next()
     # The warning here is probably a PyCharm issue ([source](https://youtrack.jetbrains.com/issue/PY-12017))
     # I let Pycharm ignore the unresolved reference warning here.

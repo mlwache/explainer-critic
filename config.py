@@ -34,7 +34,7 @@ class Config:
         return lambda parameters: optim.SGD(parameters, lr=self.learning_rate, momentum=self.momentum)
 
 
-default_config = Config(batch_size=4,
+default_config = Config(batch_size=8,
                         learning_rate=0.001,
                         momentum=0.9,
                         path_to_models='./models/mnist_net.pth',
@@ -44,4 +44,16 @@ default_config = Config(batch_size=4,
                         n_critic_samples=8,
                         n_epochs=1,
                         loss=nn.CrossEntropyLoss()
-)
+                        )
+
+test_config = Config(batch_size=default_config.batch_size,
+                     learning_rate=default_config.learning_rate,
+                     momentum=default_config.momentum,
+                     path_to_models=default_config.path_to_models,
+                     classes=default_config.classes,
+                     n_training_samples=16,
+                     n_test_samples=8,
+                     n_critic_samples=8,
+                     n_epochs=1,
+                     loss=default_config.loss
+                     )
