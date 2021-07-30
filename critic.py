@@ -1,6 +1,6 @@
 
 from net import Net
-from typing import Any
+from typing import Any, List
 from torch.utils.data import DataLoader
 from config import default_config as cfg
 from torch.nn.modules import Module
@@ -15,7 +15,7 @@ class Critic:
     def __init__(self):
         self.classifier = Net(accepts_additional_explanations=False)
 
-    def train(self, critic_loader: DataLoader[Any], explanations: list[Tensor]) -> float:
+    def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor]) -> float:
         # todo: outsource to Net
         critic_loss: Module = cfg.loss
         optimizer: Optimizer = cfg.optimizer(self.classifier.parameters())

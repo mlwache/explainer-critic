@@ -1,6 +1,6 @@
 import warnings
 import sys
-from typing import Iterator, Any
+from typing import Iterator, Any, Tuple
 
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -79,7 +79,7 @@ def main(render=False, use_rtpt=False):
 
 
 # noinspection PyShadowingNames
-def load_data() -> tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
+def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     mean_mnist = 0.1307
     std_dev_mnist = 0.3081
     transform_mnist = transforms.Compose(
@@ -119,7 +119,7 @@ def load_data() -> tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     return train_loader, test_loader, critic_loader
 
 
-def get_one_batch_of_images(loader: DataLoader[Any]) -> tuple[Tensor, Tensor]:
+def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     data_iterator: Iterator[Any] = iter(loader)
     images: Tensor
     labels: Tensor
