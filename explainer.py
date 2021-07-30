@@ -1,6 +1,6 @@
 from captum.attr import InputXGradient
 import torch
-import torch.nn as nn
+# import torch.nn as nn
 # import torch.optim as optim
 
 from torch.utils.data import DataLoader
@@ -18,16 +18,16 @@ from rtpt import RTPT
 
 
 class Explainer:
-    classifier: nn.Module
+    classifier: Net
 
     def __init__(self):
         self.classifier = Net(accepts_additional_explanations=False)
         self.critic = Critic()
         # print(net)
 
-    def evaluate(self, test_loader: DataLoader[Any]):
-        correct: int = 0
-        total: int = 0
+    def compute_accuracy(self, test_loader: DataLoader[Any]):
+        n_correct_samples: int = 0
+        n_test_samples_total: int = 0
 
         # since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
@@ -40,10 +40,10 @@ class Explainer:
                 # the class with the highest output is what we choose as prediction
                 predicted: Tensor
                 _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-        total_accuracy = correct / total
-        print(f'Accuracy of the explainer on the {total} test images: {100 * total_accuracy} %')
+                n_test_samples_total += labels.size(0)
+                n_correct_samples += (predicted == labels).sum().item()
+        total_accuracy = n_correct_samples / n_test_samples_total
+        assert n_test_samples_total == cfg.n_test_samples
         return total_accuracy
 
     def save_model(self):
@@ -61,7 +61,7 @@ class Explainer:
             for i, data in enumerate(train_loader, 0):  # i is the index of the current batch.
 
                 # only train on a part of the samples.
-                if i >= cfg.n_train_batches:
+                if i >= cfg.n_training_batches:
                     break
 
                 # get the inputs; data is a list of [inputs, labels]
@@ -80,9 +80,9 @@ class Explainer:
 
                 # print statistics
                 # running_loss += loss.item()
-                if (i + 1) % (cfg.n_train_batches / 10) == 0:
-                    # running_loss_average = running_loss / (cfg.n_train_batches / 10)
-                    print(f'explainer[epoch {epoch}, batch {i+1}] \n'
+                if (i + 1) % (cfg.n_training_batches / 10) == 0:
+                    # running_loss_average = running_loss / (cfg.n_training_batches / 10)
+                    print(f'explainer [batch  {i+1}] \n'
                           f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
                           f' + {loss_explanation:.3f}(explanation)')
                     # running_loss = 0.0
@@ -106,14 +106,7 @@ class Explainer:
         gradient = gradient_x_input_one_image / input_images
         return gradient
 
-
-    def print_prediction_one_batch(self, images, labels):
-        print('GroundTruth: ', ' '.join('%5s' % cfg.classes[labels[j]] for j in range(cfg.batch_size)))
-        # self.classifier.load_state_dict(torch.load(cfg.path_to_models))
-
+    def predict(self, images: Tensor) -> Tensor:
         outputs = self.classifier(images)
-
-        _, predicted = torch.max(outputs, 1)
-
-        print('Predicted: ', ' '.join('%5s' % cfg.classes[predicted[j]]
-                                      for j in range(cfg.batch_size)))
+        _, prediction = torch.max(outputs, 1)
+        return prediction

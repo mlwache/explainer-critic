@@ -15,6 +15,7 @@ from config import default_config as cfg
 from explainer import Explainer
 from visualization import Visualizer as Vis
 from rtpt import RTPT
+# from net import Net
 
 
 def main(render=False, use_rtpt=False):
@@ -27,23 +28,23 @@ def main(render=False, use_rtpt=False):
 
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
-    train_images, train_labels = get_one_batch_of_images(train_loader)
-    test_images, test_labels = get_one_batch_of_images(test_loader)
+    some_train_images, some_train_labels = get_one_batch_of_images(train_loader)
+    some_test_images, some_test_labels = get_one_batch_of_images(test_loader)
 
     if render:
         print('Here are some training images and test images!')
 
-        Vis.show_some_sample_images(train_images, train_labels)
-        Vis.show_some_sample_images(test_images, test_labels)
+        Vis.show_some_sample_images(some_train_images, some_train_labels)
+        Vis.show_some_sample_images(some_test_images, some_test_labels)
 
     explainer = Explainer()
 
     if render:
         print('This is what the gradient looks like before training!')
-        input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
+        input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
         Vis.amplify_and_show(input_gradient)
 
-    print(f'Training the Explainer on {cfg.n_training_samples} samples.')
+    print(f'Training the Explainer on {cfg.n_training_samples} samples...')
     explainer.train(train_loader, critic_loader, rtpt)
     print('Finished Explainer Training')
 
@@ -51,16 +52,30 @@ def main(render=False, use_rtpt=False):
     explainer.save_model()
     print('Model Saved.')
 
-    print('Showing some images with their prediction')
-    explainer.print_prediction_one_batch(test_images, test_labels)
+    print('some images and their predictions:')
+    print(f'Ground truth: {some_test_labels}')
+    predicted = explainer.predict(some_test_images)
+    print(f'predicted: {predicted}')
 
     print('Evaluating the Explainer')
-    explainer.evaluate(test_loader)
+    explainer_accuracy = explainer.compute_accuracy(test_loader)
+    print(f'Explainer Accuracy on {cfg.n_test_samples} test images: {100 * explainer_accuracy} %')
 
     if render:
         print('This is what the gradient looks like after training!')
-        input_gradient: Tensor = explainer.input_gradient(test_images, test_labels)
+        input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
         Vis.amplify_and_show(input_gradient)
+
+#         print('Showing the explainer\'s computation graph')
+#         show_computation_graph(explainer.classifier, some_test_images)
+#         print('Showing the critic\'s computation graph')
+#         show_computation_graph(explainer.critic.classifier, some_test_images)
+#
+#
+# def show_computation_graph(net: Net, images):
+#     parameters = net.parameters()
+#     y = net(images)
+#     Vis.show_computation_graph(y, parameters)
 
 
 # noinspection PyShadowingNames

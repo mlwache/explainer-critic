@@ -6,8 +6,9 @@ import numpy as np
 import torch
 import torchvision
 from torchvision.transforms import functional
-
+# from torchviz import make_dot
 from config import default_config as cfg
+# from explainer import Explainer
 
 
 class Visualizer:
@@ -44,3 +45,8 @@ class Visualizer:
             # divide by the highest absolute value, so that the resulting values are all in [-1,1] :
             amplified_images[i] = torch.div(img, maximum_value)
         Visualizer.image_show(amplified_images)
+
+#     @staticmethod
+#     def show_computation_graph(labels, parameters):
+#         raise NotImplementedError
+# #        make_dot(y, parameters)
