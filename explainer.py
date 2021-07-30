@@ -102,8 +102,10 @@ class Explainer:
         assert labels.size() == torch.Size([cfg.batch_size])
         input_x_gradient = InputXGradient(self.classifier.forward)
         input_images.requires_grad = True
-        attribution: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
-        return attribution
+        gradient_x_input_one_image: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
+        gradient = gradient_x_input_one_image / input_images
+        return gradient
+
 
     def print_prediction_one_batch(self, images, labels):
         print('GroundTruth: ', ' '.join('%5s' % cfg.classes[labels[j]] for j in range(cfg.batch_size)))
