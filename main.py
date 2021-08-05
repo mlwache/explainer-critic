@@ -1,5 +1,6 @@
+import argparse
 import warnings
-import sys
+# import sys
 from typing import Iterator, Any, Tuple
 
 from torch import Tensor
@@ -18,11 +19,11 @@ from rtpt import RTPT
 # from net import Net
 
 
-def main(render=False, use_rtpt=False):
+def main():
 
     # creating rtpt object to name the process
     rtpt = None
-    if use_rtpt:
+    if cfg.rtpt_enabled:
         rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=cfg.n_training_batches)
         rtpt.start()
 
@@ -31,7 +32,7 @@ def main(render=False, use_rtpt=False):
     some_train_images, some_train_labels = get_one_batch_of_images(train_loader)
     some_test_images, some_test_labels = get_one_batch_of_images(test_loader)
 
-    if render:
+    if cfg.render_enabled:
         print('Here are some training images and test images!')
 
         Vis.show_some_sample_images(some_train_images, some_train_labels)
@@ -39,7 +40,7 @@ def main(render=False, use_rtpt=False):
 
     explainer = Explainer()
 
-    if render:
+    if cfg.render_enabled:
         print('This is what the gradient looks like before training!')
         input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
         Vis.amplify_and_show(input_gradient)
@@ -61,7 +62,7 @@ def main(render=False, use_rtpt=False):
     explainer_accuracy = explainer.compute_accuracy(test_loader)
     print(f'Explainer Accuracy on {cfg.n_test_samples} test images: {100 * explainer_accuracy} %')
 
-    if render:
+    if cfg.render_enabled:
         print('This is what the gradient looks like after training!')
         input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
         Vis.amplify_and_show(input_gradient)
@@ -129,8 +130,24 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     return images, labels
 
 
+def set_config_from_arguments():
+    parser = argparse.ArgumentParser(description='Run the explainer-critic on MNIST.')
+    config_dict = cfg.__dict__
+
+    # Add an argument for all attributes in the config dataclass object
+    for attribute_name in config_dict.keys():
+        parser.add_argument(f'--{attribute_name}', type=type(config_dict[attribute_name]),
+                            default=config_dict[attribute_name])
+    passed_arguments = parser.parse_args()
+    for attribute_name in config_dict.keys():
+        passed_argument = getattr(passed_arguments, attribute_name)
+        setattr(cfg, attribute_name, passed_argument)
+        # globals()["cfg."+attribute_name] = argument
+        # the left hand side here is the variable whose name is "cfg." + the string saved in attribute_name
+
+
 if __name__ == '__main__':
+    # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
-    render_enabled = (sys.argv.__contains__("--render"))
-    rtpt_enabled = (sys.argv.__contains__("--rtpt"))
-    main(render=render_enabled, use_rtpt=rtpt_enabled)
+    set_config_from_arguments()
+    main()

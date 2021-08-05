@@ -12,15 +12,6 @@ if their explanations help a student to learn quickly.
 
 Here you can find a [formalization and more detailed description](https://hackmd.io/zEC0IZk5TVyVyysqPqDp2A?both).
 
-## To Do
+## Usage
 
-* [x] train on small subset (maybe 500 samples) of MNIST only, to make developing/debugging quicker.
-* [x] compute the input gradient of a some test images, and show them
-* [ ] add logging
-* [x] finish building the "skeleton" (method stubs)
-* [ ] fill them.
-    * [x] first rough implementation containing lots of bugs
-    * [ ] think about tensor/list dimensions difference in explainer/critic
-    * [ ] think about which parts need to be requires_grad
-* [ ] write a few simple tests  
-* [ ] debug
+* Run `python3 main.py -h` to show available options to run.

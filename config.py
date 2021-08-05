@@ -16,6 +16,8 @@ class Config:
     n_critic_batches: int
     n_epochs: int
     loss: Module
+    render_enabled: bool
+    rtpt_enabled: bool
 
     @property
     def n_test_samples(self) -> int:
@@ -43,7 +45,9 @@ default_config = Config(batch_size=4,
                         n_test_batches=5,
                         n_critic_batches=2,
                         n_epochs=1,
-                        loss=nn.CrossEntropyLoss()
+                        loss=nn.CrossEntropyLoss(),
+                        render_enabled=False,
+                        rtpt_enabled=False
                         )
 
 test_config = Config(batch_size=default_config.batch_size,
@@ -55,5 +59,7 @@ test_config = Config(batch_size=default_config.batch_size,
                      n_test_batches=2,
                      n_critic_batches=2,
                      n_epochs=1,
-                     loss=default_config.loss
+                     loss=default_config.loss,
+                     render_enabled=False,
+                     rtpt_enabled=False
                      )
