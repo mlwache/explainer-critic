@@ -14,7 +14,7 @@ def test_main_load_data():
     train_loader, test_loader, critic_loader = main.load_data()
     train_data_sample: Tensor
     for i, train_data_sample in enumerate(train_loader, 0):
-        if i >= t_cfg.n_train_batches:
+        if i >= t_cfg.n_training_batches:
             break
         images, labels = train_data_sample
         assert len(images) == t_cfg.batch_size

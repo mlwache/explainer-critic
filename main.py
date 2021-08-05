@@ -23,7 +23,7 @@ def main(render=False, use_rtpt=False):
     # creating rtpt object to name the process
     rtpt = None
     if use_rtpt:
-        rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=cfg.n_train_batches)
+        rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=cfg.n_training_batches)
         rtpt.start()
 
     print('Loading Data...')
@@ -130,7 +130,7 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
 
 
 if __name__ == '__main__':
-
+    torch.multiprocessing.set_sharing_strategy('file_system')
     render_enabled = (sys.argv.__contains__("--render"))
     rtpt_enabled = (sys.argv.__contains__("--rtpt"))
     main(render=render_enabled, use_rtpt=rtpt_enabled)
