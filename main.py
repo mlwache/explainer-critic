@@ -18,6 +18,11 @@ from visualization import Visualizer as Vis
 from rtpt import RTPT
 # from net import Net
 
+if torch.cuda.is_available():
+    device = "cuda"
+else:
+    device = "cpu"
+
 
 def main():
 
@@ -39,6 +44,7 @@ def main():
         Vis.show_some_sample_images(some_test_images, some_test_labels)
 
     explainer = Explainer()
+    explainer.classifier.to(device)
 
     if cfg.render_enabled:
         print('This is what the gradient looks like before training!')
@@ -46,7 +52,7 @@ def main():
         Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
-    explainer.train(train_loader, critic_loader, rtpt)
+    explainer.train(train_loader, critic_loader, rtpt, device)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.path_to_models}.')
@@ -106,7 +112,7 @@ def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
 
     # print(f"training set: {training_set}")
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=cfg.batch_size,
-                                                                shuffle=True, num_workers=2)
+                                                                shuffle=True, num_workers=0)
     test_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
     split = [int(len(test_set) * 0.5), int(len(test_set) * 0.5)]
     critic_set = torch.utils.data.random_split(test_set, split)[0].dataset
@@ -114,9 +120,9 @@ def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
 
     # print(f"test set: {test_set}")
     test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
-                                                               shuffle=True, num_workers=2)
+                                                               shuffle=True, num_workers=0)
     critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=cfg.batch_size,
-                                                                 shuffle=True, num_workers=2)
+                                                                 shuffle=True, num_workers=0)
     return train_loader, test_loader, critic_loader
 
 

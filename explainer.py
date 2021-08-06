@@ -49,7 +49,7 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), cfg.path_to_models)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT, device: str):
         classification_loss: Module = cfg.loss  # actually the type should be _Loss.
         # TODO: (nice to have):
         # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
@@ -66,6 +66,8 @@ class Explainer:
 
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
+                inputs.to(device)
+                labels.to(device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
