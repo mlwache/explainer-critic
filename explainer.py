@@ -22,6 +22,7 @@ class Explainer:
 
     def __init__(self):
         self.classifier = Net(accepts_additional_explanations=False)
+        self.classifier = self.classifier.to(cfg.device)
         self.critic = Critic()
         # print(net)
 
@@ -34,14 +35,21 @@ class Explainer:
             for i, data in enumerate(test_loader, 0):
                 if i >= cfg.n_test_batches:
                     break
+
                 images, labels = data
+                images = images.to(cfg.device)
+                labels = labels.to(cfg.device)
+
                 # calculate outputs by running images through the network
                 outputs = self.classifier(images)
+                assert outputs.device.type == cfg.device
+
                 # the class with the highest output is what we choose as prediction
                 predicted: Tensor
                 _, predicted = torch.max(outputs.data, 1)
                 n_test_samples_total += labels.size(0)
                 n_correct_samples += (predicted == labels).sum().item()
+                assert predicted.device.type == cfg.device
         total_accuracy = n_correct_samples / n_test_samples_total
         assert n_test_samples_total == cfg.n_test_samples
         return total_accuracy
@@ -49,7 +57,7 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), cfg.path_to_models)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT, device: str):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT):
         classification_loss: Module = cfg.loss  # actually the type should be _Loss.
         # TODO: (nice to have):
         # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
@@ -66,14 +74,15 @@ class Explainer:
 
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
-                inputs.to(device)
-                labels.to(device)
+                inputs.to(cfg.device)
+                labels.to(cfg.device)
 
                 # zero the parameter gradients
                 optimizer.zero_grad()
 
                 # forward + backward + optimize
                 outputs = self.classifier(inputs)
+                assert outputs.device.type == cfg.device
                 loss_classification = classification_loss(outputs, labels)
                 loss_explanation = self.explanation_loss(critic_loader)
                 loss = loss_classification + loss_explanation
@@ -95,6 +104,8 @@ class Explainer:
         explanations = []
         for _, data in enumerate(critic_loader, 0):
             inputs, labels = data
+            inputs = inputs.to(cfg.device)
+            labels = labels.to(cfg.device)
             explanations.append(self.input_gradient(inputs, labels))
         critic_end_of_training_loss: float = self.critic.train(critic_loader, explanations)
         return critic_end_of_training_loss
@@ -105,7 +116,10 @@ class Explainer:
         input_x_gradient = InputXGradient(self.classifier.forward)
         input_images.requires_grad = True
         gradient_x_input_one_image: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
-        gradient = gradient_x_input_one_image / input_images
+        gradient: Tensor = gradient_x_input_one_image / input_images
+
+        # The gradient tensor is computed from other tensors on cfg.device, so it should be there.
+        assert gradient.device.type == cfg.device
         return gradient
 
     def predict(self, images: Tensor) -> Tensor:

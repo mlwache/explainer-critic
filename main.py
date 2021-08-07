@@ -18,11 +18,6 @@ from visualization import Visualizer as Vis
 from rtpt import RTPT
 # from net import Net
 
-if torch.cuda.is_available():
-    device = "cuda"
-else:
-    device = "cpu"
-
 
 def main():
 
@@ -44,7 +39,6 @@ def main():
         Vis.show_some_sample_images(some_test_images, some_test_labels)
 
     explainer = Explainer()
-    explainer.classifier.to(device)
 
     if cfg.render_enabled:
         print('This is what the gradient looks like before training!')
@@ -52,7 +46,7 @@ def main():
         Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
-    explainer.train(train_loader, critic_loader, rtpt, device)
+    explainer.train(train_loader, critic_loader, rtpt)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.path_to_models}.')
@@ -133,6 +127,8 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     images, labels = data_iterator.next()
     # The warning here is probably a PyCharm issue ([source](https://youtrack.jetbrains.com/issue/PY-12017))
     # I let Pycharm ignore the unresolved reference warning here.
+    images = images.to(cfg.device)
+    labels = labels.to(cfg.device)
     return images, labels
 
 
@@ -153,6 +149,10 @@ def set_config_from_arguments():
 
 
 if __name__ == '__main__':
+    if not torch.cuda.is_available():
+        print("No GPU found, falling back to CPU.")
+        cfg.device = "cpu"
+
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
     set_config_from_arguments()

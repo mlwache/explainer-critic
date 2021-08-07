@@ -20,7 +20,7 @@ class Visualizer:
         # invert image for better visibility
         inverted = functional.invert(combined_image)
         # img_un_normalized = image / 2 + 0.5
-        np_img = inverted.numpy()  # img_un_normalized.numpy()
+        np_img = inverted.cpu().numpy()  # img_un_normalized.numpy()
         plt.imshow(np.transpose(np_img, (1, 2, 0)))  # .astype(np.uint8)*255)  # added `.astype(np.uint8)*255` here
         # to get rid of "clipping Data to valid range" error, but it's less easy with np.float, as this doesn't have
         # guarantees on the range. However the quality is a bit worse this way, maybe I should change it back some time.
@@ -37,7 +37,7 @@ class Visualizer:
 
     @staticmethod
     def amplify_and_show(images: Tensor):
-        amplified_images = torch.empty_like(images)
+        amplified_images = torch.empty_like(images, device=cfg.device)
         for i, img in enumerate(images):
             maximum_brightness = torch.max(img)
             minimum_brightness = torch.min(img)

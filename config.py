@@ -18,6 +18,7 @@ class Config:
     loss: Module
     render_enabled: bool
     rtpt_enabled: bool
+    device: str
 
     @property
     def n_test_samples(self) -> int:
@@ -47,7 +48,8 @@ default_config = Config(batch_size=4,
                         n_epochs=1,
                         loss=nn.CrossEntropyLoss(),
                         render_enabled=False,
-                        rtpt_enabled=False
+                        rtpt_enabled=False,
+                        device="cuda"
                         )
 
 test_config = Config(batch_size=default_config.batch_size,
@@ -61,5 +63,6 @@ test_config = Config(batch_size=default_config.batch_size,
                      n_epochs=1,
                      loss=default_config.loss,
                      render_enabled=False,
-                     rtpt_enabled=False
+                     rtpt_enabled=False,
+                     device=default_config.device
                      )

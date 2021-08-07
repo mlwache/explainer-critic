@@ -14,6 +14,7 @@ class Critic:
 
     def __init__(self):
         self.classifier = Net(accepts_additional_explanations=False)
+        self.classifier = self.classifier.to(cfg.device)
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor]) -> float:
         # todo: outsource to Net
@@ -32,6 +33,8 @@ class Critic:
             # get the inputs; data is a list of [inputs, labels]
             inputs: Tensor
             inputs, labels = data
+            inputs = inputs.to(cfg.device)
+            labels = labels.to(cfg.device)
 
             # zero the parameter gradients # TODO: think about whether zero_grad should be done here.
             # optimizer.zero_grad()
