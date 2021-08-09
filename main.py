@@ -22,10 +22,8 @@ from rtpt import RTPT
 def main():
 
     # creating rtpt object to name the process
-    rtpt = None
     if cfg.rtpt_enabled:
-        rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=cfg.n_training_batches)
-        rtpt.start()
+        cfg.rtpt.start()
 
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
@@ -46,7 +44,7 @@ def main():
         Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
-    explainer.train(train_loader, critic_loader, rtpt)
+    explainer.train(train_loader, critic_loader)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.path_to_models}.')

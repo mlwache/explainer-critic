@@ -57,7 +57,7 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), cfg.path_to_models)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], rtpt: RTPT):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any]):
         classification_loss: Module = cfg.loss  # actually the type should be _Loss.
         # TODO: (nice to have):
         # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
@@ -97,8 +97,8 @@ class Explainer:
                           f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
                           f' + {loss_explanation:.3f}(explanation)')
                     # running_loss = 0.0
-                if rtpt is not None:
-                    rtpt.step(subtitle=f"loss={loss:2.2f}")
+                if cfg.rtpt_enabled:
+                    cfg.rtpt.step(subtitle=f"loss={loss:2.2f}")
 
     def explanation_loss(self, critic_loader):
         explanations = []
