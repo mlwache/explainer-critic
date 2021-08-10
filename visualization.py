@@ -33,11 +33,11 @@ class Visualizer:
         # show images
         Visualizer.image_show(images)
         # print labels
-        print('labels: ', ' '.join('%5s' % cfg.classes[labels[j]] for j in range(cfg.batch_size)))
+        print('labels: ', ' '.join('%5s' % cfg.CLASSES[labels[j]] for j in range(cfg.batch_size)))
 
     @staticmethod
     def amplify_and_show(images: Tensor):
-        amplified_images = torch.empty_like(images, device=cfg.device)
+        amplified_images = torch.empty_like(images, device=cfg.DEVICE)
         for i, img in enumerate(images):
             maximum_brightness = torch.max(img)
             minimum_brightness = torch.min(img)

@@ -23,7 +23,7 @@ def main():
 
     # creating rtpt object to name the process
     if cfg.rtpt_enabled:
-        cfg.rtpt.start()
+        cfg.RTPT_OBJECT.start()
 
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
@@ -47,7 +47,7 @@ def main():
     explainer.train(train_loader, critic_loader)
     print('Finished Explainer Training')
 
-    print(f'Saving the model to {cfg.path_to_models}.')
+    print(f'Saving the model to {cfg.PATH_TO_MODELS}.')
     explainer.save_model()
     print('Model Saved.')
 
@@ -125,8 +125,8 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     images, labels = data_iterator.next()
     # The warning here is probably a PyCharm issue ([source](https://youtrack.jetbrains.com/issue/PY-12017))
     # I let Pycharm ignore the unresolved reference warning here.
-    images = images.to(cfg.device)
-    labels = labels.to(cfg.device)
+    images = images.to(cfg.DEVICE)
+    labels = labels.to(cfg.DEVICE)
     return images, labels
 
 
@@ -149,7 +149,7 @@ def set_config_from_arguments():
 if __name__ == '__main__':
     if not torch.cuda.is_available():
         print("No GPU found, falling back to CPU.")
-        cfg.device = "cpu"
+        cfg.DEVICE = "cpu"
 
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')

@@ -42,14 +42,18 @@ class Net(nn.Module):
             # and subject to change. Please do not use them for anything important
             # until they are released as stable."
             warnings.simplefilter("ignore")
-            x = f.relu(f.max_pool2d(self.conv1(x), 2))
+            x = f.relu(
+                f.max_pool2d(
+                    self.conv1(x),
+                    2)
+            )
             x = f.relu(f.max_pool2d(self.conv2_drop(self.conv2(x)), 2))
         x = x.view(-1, 320)
         x = f.relu(self.fc1(x))
         x = f.dropout(x, training=self.training)
         x = self.fc2(x)
         x = f.log_softmax(x, dim=-1)
-        assert x.size() == torch.Size([cfg.batch_size, len(cfg.classes)])
+        assert x.size() == torch.Size([cfg.batch_size, len(cfg.CLASSES)])
         return x   # Implicit dimension choice for log_softmax
         # has been deprecated. Just using the last dimension for now.
         # (https://stackoverflow.com/questions/49006773/userwarning-implicit-dimension-choice-for-log-softmax-has-been-deprecated)

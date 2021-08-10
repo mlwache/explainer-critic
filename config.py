@@ -4,7 +4,8 @@ from torch.nn.modules import Module
 import torch.nn as nn
 from rtpt import RTPT
 
-@dataclass()
+
+@dataclass
 class Config:
     render_enabled: bool
     rtpt_enabled: bool
@@ -21,20 +22,22 @@ class Config:
     n_critic_batches: int
 
     # config values that aren't set when calling
-    path_to_models: str = field(init=False)
-    classes: list = field(init=False)
-    loss: Module = field(init=False)
-    device: str = field(init=False)
-    rtpt: RTPT = field(init=False)
+    PATH_TO_MODELS: str = field(init=False)
+    CLASSES: list = field(init=False)
+    LOSS: Module = field(init=False)
+    DEVICE: str = field(init=False)
+    RTPT_OBJECT: RTPT = field(init=False)
+    MNIST_TOTAL_SAMPLES: int = field(init=False)
 
     def __post_init__(self):
-        self.path_to_models = './models/mnist_net.pth'
-        self.classes = list(range(10))  # We are dealing with MNIST.
-        self.loss = nn.CrossEntropyLoss()
-        self.device = "cuda"
-        self.rtpt = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=self.n_training_batches)
+        self.PATH_TO_MODELS = './models/mnist_net.pth'
+        self.CLASSES = list(range(10))  # We are dealing with MNIST.
+        self.LOSS = nn.CrossEntropyLoss()
+        self.DEVICE = "cuda"
+        self.RTPT_OBJECT = RTPT(name_initials='MW', experiment_name='Explainer-Critic', max_iterations=self.n_training_batches)
+        self.MNIST_TOTAL_SAMPLES = 20000
         n_total_samples = self.n_training_samples + self.n_training_samples + self.n_critic_samples
-        assert n_total_samples <= 20000  # MNIST only has 20000 samples in total.
+        assert n_total_samples <= self.MNIST_TOTAL_SAMPLES, f"MNIST only has {self.MNIST_TOTAL_SAMPLES} samples."
 
     @property
     def n_test_samples(self) -> int:

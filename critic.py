@@ -14,11 +14,11 @@ class Critic:
 
     def __init__(self):
         self.classifier = Net(accepts_additional_explanations=False)
-        self.classifier = self.classifier.to(cfg.device)
+        self.classifier = self.classifier.to(cfg.DEVICE)
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor]) -> float:
         # todo: outsource to Net
-        critic_loss: Module = cfg.loss
+        critic_loss: Module = cfg.LOSS
         optimizer: Optimizer = cfg.optimizer(self.classifier.parameters())
         intermediate_loss_sum = 0.0
         end_of_training_loss: float = 0.0
@@ -33,8 +33,8 @@ class Critic:
             # get the inputs; data is a list of [inputs, labels]
             inputs: Tensor
             inputs, labels = data
-            inputs = inputs.to(cfg.device)
-            labels = labels.to(cfg.device)
+            inputs = inputs.to(cfg.DEVICE)
+            labels = labels.to(cfg.DEVICE)
 
             # zero the parameter gradients # TODO: think about whether zero_grad should be done here.
             # optimizer.zero_grad()
