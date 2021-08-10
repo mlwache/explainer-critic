@@ -38,6 +38,7 @@ class Config:
                                 experiment_name='explainer-critic',
                                 max_iterations=self.n_training_batches)
         self.MNIST_TOTAL_SAMPLES = 20000
+        self.TIMES_TO_PRINT_CRITIC = 10
         n_total_samples = self.n_training_samples + self.n_training_samples + self.n_critic_samples
         assert n_total_samples <= self.MNIST_TOTAL_SAMPLES, f"MNIST only has {self.MNIST_TOTAL_SAMPLES} samples."
 

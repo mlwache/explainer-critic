@@ -3,7 +3,7 @@ import torch
 # import torch.nn as nn
 # import torch.optim as optim
 
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader
 from torch import Tensor
 from typing import Any
 from torch.optim import Optimizer
@@ -14,7 +14,6 @@ from config import default_config as cfg
 from critic import Critic
 
 from net import Net
-from rtpt import RTPT
 
 
 class Explainer:
@@ -35,7 +34,7 @@ class Explainer:
             for i, data in enumerate(test_loader, 0):
                 if i >= cfg.n_test_batches:
                     break
-
+                labels: Tensor
                 images, labels = data
                 images = images.to(cfg.DEVICE)
                 labels = labels.to(cfg.DEVICE)
@@ -66,10 +65,10 @@ class Explainer:
         for epoch in range(cfg.n_epochs):
 
             # running_loss = 0.0
-            for i, data in enumerate(train_loader, 0):  # i is the index of the current batch.
+            for n_current_batch, data in enumerate(train_loader, 0):  # i is the index of the current batch.
 
                 # only train on a part of the samples.
-                if i >= cfg.n_training_batches:
+                if n_current_batch >= cfg.n_training_batches:
                     break
 
                 # get the inputs; data is a list of [inputs, labels]
@@ -91,13 +90,10 @@ class Explainer:
 
                 # print statistics
                 # running_loss += loss.item()
-                times_to_print = 10
-                if (i + 1) % ((cfg.n_training_batches // times_to_print) + 1) == 0:
-                    # running_loss_average = running_loss / (cfg.n_training_batches / 10)
-                    print(f'explainer [batch  {i+1}] \n'
-                          f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
-                          f' + {loss_explanation:.3f}(explanation)')
-                    # running_loss = 0.0
+                print(f'explainer [batch  {n_current_batch}] \n'
+                      f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
+                      f' + {loss_explanation:.3f}(explanation)')
+                # running_loss = 0.0
                 if cfg.rtpt_enabled:
                     cfg.RTPT_OBJECT.step(subtitle=f"loss={loss:2.2f}")
 

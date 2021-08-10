@@ -4,7 +4,7 @@ import warnings
 from typing import Iterator, Any, Tuple
 
 from torch import Tensor
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader
 from torchvision.datasets import MNIST
 
 import torchvision
@@ -15,7 +15,7 @@ import torch.utils.data
 from config import default_config as cfg
 from explainer import Explainer
 from visualization import Visualizer as Vis
-from rtpt import RTPT
+# from rtpt import RTPT
 # from net import Net
 
 

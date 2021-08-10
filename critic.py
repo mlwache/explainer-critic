@@ -1,7 +1,6 @@
-
 from net import Net
 from typing import Any, List
-from torch.utils.data import DataLoader
+from torch.utils.data.dataloader import DataLoader
 from config import default_config as cfg
 from torch.nn.modules import Module
 from torch.optim import Optimizer
@@ -9,7 +8,6 @@ from torch import Tensor
 
 
 class Critic:
-
     classifier: Net
 
     def __init__(self):
@@ -21,13 +19,13 @@ class Critic:
         critic_loss: Module = cfg.LOSS
         optimizer: Optimizer = cfg.optimizer(self.classifier.parameters())
         intermediate_loss_sum = 0.0
+        intermediate_loss_count = 0
         end_of_training_loss: float = 0.0
         data: list
-        times_to_print = 8
-        for i, data in enumerate(critic_loader, 0):  # i is the index of the current batch.
+        for n_current_batch, data in enumerate(critic_loader, 0):  # i is the index of the current batch.
 
             # only train on a part of the samples.
-            if i >= cfg.n_critic_batches:
+            if n_current_batch >= cfg.n_critic_batches:
                 break
 
             # get the inputs; data is a list of [inputs, labels]
@@ -40,8 +38,8 @@ class Critic:
             # optimizer.zero_grad()
 
             # forward + backward + optimize
-            assert inputs.size() == explanations[i].size()
-            input_explanation_product: Tensor = inputs*explanations[i]
+            assert inputs.size() == explanations[n_current_batch].size()
+            input_explanation_product: Tensor = inputs * explanations[n_current_batch]
             assert inputs.size() == input_explanation_product.size()  # element-wise product should not change the size.
             outputs = self.classifier(input_explanation_product)
             loss = critic_loss(outputs, labels)
@@ -50,10 +48,12 @@ class Critic:
 
             # print statistics
             intermediate_loss_sum += loss.item()
-
-            if (i + 1) % ((cfg.n_critic_batches // times_to_print)+1) == 0:
+            intermediate_loss_count += 1
+            if cfg.n_critic_batches <= cfg.TIMES_TO_PRINT_CRITIC or (
+                    n_current_batch % (cfg.n_critic_batches // cfg.TIMES_TO_PRINT_CRITIC) == 0
+            ):
                 print('critic[batch %5d] loss: %.3f' %
-                      (i + 1, intermediate_loss_sum / (cfg.n_critic_batches / times_to_print)))
+                      (n_current_batch, intermediate_loss_sum / intermediate_loss_count))
                 # (average over the last part of the batches)
                 intermediate_loss_sum = 0.0
             end_of_training_loss = loss.item()  # or just loss? TODO: think about computation graph
