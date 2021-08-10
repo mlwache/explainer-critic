@@ -23,7 +23,7 @@ class Critic:
         intermediate_loss_sum = 0.0
         end_of_training_loss: float = 0.0
         data: list
-        times_to_print = 2
+        times_to_print = 8
         for i, data in enumerate(critic_loader, 0):  # i is the index of the current batch.
 
             # only train on a part of the samples.
@@ -51,7 +51,7 @@ class Critic:
             # print statistics
             intermediate_loss_sum += loss.item()
 
-            if (i + 1) % (cfg.n_critic_batches / times_to_print) == 0:
+            if (i + 1) % ((cfg.n_critic_batches // times_to_print)+1) == 0:
                 print('critic[batch %5d] loss: %.3f' %
                       (i + 1, intermediate_loss_sum / (cfg.n_critic_batches / times_to_print)))
                 # (average over the last part of the batches)

@@ -91,7 +91,8 @@ class Explainer:
 
                 # print statistics
                 # running_loss += loss.item()
-                if (i + 1) % (cfg.n_training_batches / 10) == 0:
+                times_to_print = 10
+                if (i + 1) % ((cfg.n_training_batches // times_to_print) + 1) == 0:
                     # running_loss_average = running_loss / (cfg.n_training_batches / 10)
                     print(f'explainer [batch  {i+1}] \n'
                           f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
