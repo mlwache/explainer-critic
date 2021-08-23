@@ -4,3 +4,4 @@ captum~=0.4.0
 matplotlib
 numpy
 rtpt~=0.0.4
+tensorboard~=2.6.0

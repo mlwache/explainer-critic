@@ -19,6 +19,12 @@ from visualization import Visualizer as Vis
 # from rtpt import RTPT
 # from net import Net
 
+# Things necessary for Tensorboard Logging
+import json
+import os
+from time import time
+from torch.utils.tensorboard import SummaryWriter
+
 
 def main():
 
@@ -26,7 +32,13 @@ def main():
     if cfg.rtpt_enabled:
         cfg.RTPT_OBJECT.start()
 
-    set_config_from_arguments()
+        # Tensorboard Writer
+    log_dir = f"./runs/{int(time())}"
+    os.makedirs(log_dir, exist_ok=True)
+    writer = SummaryWriter(log_dir)
+
+    set_config_from_arguments(log_dir)
+
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
     some_train_images, some_train_labels = get_one_batch_of_images(train_loader)
@@ -46,7 +58,7 @@ def main():
         Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
-    explainer.train(train_loader, critic_loader)
+    explainer.train(train_loader, critic_loader, writer)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.PATH_TO_MODELS}.')
@@ -132,7 +144,7 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     return images, labels
 
 
-def set_config_from_arguments():
+def set_config_from_arguments(log_dir: str):
     parser = argparse.ArgumentParser(description='Run the explainer-critic on MNIST.')
     config_dict = cfg.__dict__
 
@@ -146,6 +158,10 @@ def set_config_from_arguments():
         setattr(cfg, attribute_name, passed_argument)
         # globals()["cfg."+attribute_name] = argument
         # the left hand side here is the variable whose name is "cfg." + the string saved in attribute_name
+    # Write config to log file
+    with open(os.path.join(log_dir, "config.json"), 'w') as f:
+        json_dump: str = json.dumps(cfg.__dict__, default=lambda o: '<not serializable>')
+        f.write(json_dump)
 
 
 if __name__ == '__main__':

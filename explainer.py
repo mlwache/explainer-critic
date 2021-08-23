@@ -9,6 +9,7 @@ from typing import Any
 from torch.optim import Optimizer
 
 from torch.nn.modules import Module
+from torch.utils.tensorboard import SummaryWriter
 
 from config import default_config as cfg
 from critic import Critic
@@ -56,7 +57,7 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), cfg.PATH_TO_MODELS)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any]):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], writer: SummaryWriter):
         classification_loss: Module = cfg.LOSS  # actually the type should be _Loss.
         # TODO: (nice to have):
         # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
@@ -88,6 +89,10 @@ class Explainer:
                 loss.backward()
                 optimizer.step()
 
+                writer.add_scalar("Explainer_Training/Explanation", loss_explanation, global_step=n_current_batch)
+                writer.add_scalar("Explainer_Training/Classification", loss_classification, global_step=n_current_batch)
+                writer.add_scalar("Explainer_Training/Total", loss, global_step=n_current_batch)
+
                 # print statistics
                 # running_loss += loss.item()
                 print(f'explainer [batch  {n_current_batch}] \n'
@@ -96,6 +101,8 @@ class Explainer:
                 # running_loss = 0.0
                 if cfg.rtpt_enabled:
                     cfg.RTPT_OBJECT.step(subtitle=f"loss={loss:2.2f}")
+        writer.flush()
+        writer.close()
 
     def explanation_loss(self, critic_loader):
         explanations = []
