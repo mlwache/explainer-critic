@@ -4,6 +4,7 @@ import warnings
 from typing import Iterator, Any, Tuple
 
 from torch import Tensor
+# from torch.utils.data import Dataset
 from torch.utils.data.dataloader import DataLoader
 from torchvision.datasets import MNIST
 
@@ -25,6 +26,7 @@ def main():
     if cfg.rtpt_enabled:
         cfg.RTPT_OBJECT.start()
 
+    set_config_from_arguments()
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data()
     some_train_images, some_train_labels = get_one_batch_of_images(train_loader)
@@ -106,15 +108,15 @@ def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=cfg.batch_size,
                                                                 shuffle=True, num_workers=0)
     test_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
-    split = [int(len(test_set) * 0.5), int(len(test_set) * 0.5)]
-    critic_set = torch.utils.data.random_split(test_set, split)[0].dataset
-    # critic_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
+    critic_set: MNIST
 
-    # print(f"test set: {test_set}")
+    split = [int(len(test_set) * 0.5), int(len(test_set) * 0.5)]
+    test_set, critic_set = torch.utils.data.random_split(test_set, split)
+
     test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
                                                                shuffle=True, num_workers=0)
     critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=cfg.batch_size,
-                                                                 shuffle=True, num_workers=0)
+                                                                 shuffle=False, num_workers=0)
     return train_loader, test_loader, critic_loader
 
 
@@ -153,5 +155,4 @@ if __name__ == '__main__':
 
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
-    set_config_from_arguments()
     main()

@@ -46,7 +46,7 @@ class Explainer:
                 # the class with the highest output is what we choose as prediction
                 predicted: Tensor
                 _, predicted = torch.max(outputs.data, 1)
-                n_test_samples_total += labels.size(0)
+                n_test_samples_total += labels.size()[0]
                 n_correct_samples += (predicted == labels).sum().item()
                 assert predicted.device.type == cfg.DEVICE
         total_accuracy = n_correct_samples / n_test_samples_total
@@ -65,7 +65,7 @@ class Explainer:
         for epoch in range(cfg.n_epochs):
 
             # running_loss = 0.0
-            for n_current_batch, data in enumerate(train_loader, 0):  # i is the index of the current batch.
+            for n_current_batch, data in enumerate(train_loader, 0):
 
                 # only train on a part of the samples.
                 if n_current_batch >= cfg.n_training_batches:
