@@ -48,7 +48,7 @@ class Critic:
             optimizer.step()
 
             # print statistics
-            print(f'critic {n_current_batch=}: {loss.item()=:.3f}')
+            print(f'critic n_current_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
             global_step = cfg.n_critic_batches*n_explainer_batch+n_current_batch
             writer.add_scalar("Critic_Training/Critic_Loss", loss.item(), global_step=global_step)
             end_of_training_loss = loss.item()  # TODO: think about computation graph
