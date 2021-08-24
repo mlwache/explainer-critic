@@ -1,3 +1,5 @@
+from torch.utils.tensorboard import SummaryWriter
+
 from net import Net
 from typing import Any, List
 from torch.utils.data.dataloader import DataLoader
@@ -14,12 +16,11 @@ class Critic:
         self.classifier = Net(accepts_additional_explanations=False)
         self.classifier = self.classifier.to(cfg.DEVICE)
 
-    def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor]) -> float:
+    def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor], writer: SummaryWriter, n_explainer_batch: int) -> float:
         # todo: outsource to Net
         critic_loss: Module = cfg.LOSS
         optimizer: Optimizer = cfg.optimizer(self.classifier.parameters())
-        intermediate_loss_sum = 0.0
-        intermediate_loss_count = 0
+
         end_of_training_loss: float = 0.0
         data: list
         for n_current_batch, data in enumerate(critic_loader, 0):  # i is the index of the current batch.
@@ -47,15 +48,9 @@ class Critic:
             optimizer.step()
 
             # print statistics
-            intermediate_loss_sum += loss.item()
-            intermediate_loss_count += 1
-            if cfg.n_critic_batches <= cfg.TIMES_TO_PRINT_CRITIC or (
-                    n_current_batch % (cfg.n_critic_batches // cfg.TIMES_TO_PRINT_CRITIC) == 0
-            ):
-                print('critic[batch %5d] loss: %.3f' %
-                      (n_current_batch, intermediate_loss_sum / intermediate_loss_count))
-                # (average over the last part of the batches)
-                intermediate_loss_sum = 0.0
-            end_of_training_loss = loss.item()  # or just loss? TODO: think about computation graph
+            print(f'critic {n_current_batch=}: {loss.item()=:.3f}')
+            global_step = cfg.n_critic_batches*n_explainer_batch+n_current_batch
+            writer.add_scalar("Critic_Training/Critic_Loss", loss.item(), global_step=global_step)
+            end_of_training_loss = loss.item()  # TODO: think about computation graph
 
         return end_of_training_loss

@@ -58,9 +58,9 @@ class Explainer:
         torch.save(self.classifier.state_dict(), cfg.PATH_TO_MODELS)
 
     def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any], writer: SummaryWriter):
-        classification_loss: Module = cfg.LOSS  # actually the type should be _Loss.
-        # TODO: (nice to have):
-        # https://stackoverflow.com/questions/42736044/python-access-to-a-protected-member-of-a-class
+        classification_loss: Module = cfg.LOSS
+        # actually the type is _Loss, but that's protected, for backward compatibility.
+        # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
         optimizer: Optimizer = cfg.optimizer(self.classifier.parameters())
 
         for epoch in range(cfg.n_epochs):
@@ -84,14 +84,15 @@ class Explainer:
                 outputs = self.classifier(inputs)
                 assert outputs.device.type == cfg.DEVICE
                 loss_classification = classification_loss(outputs, labels)
-                loss_explanation = self.explanation_loss(critic_loader)
+                loss_explanation = self.explanation_loss(critic_loader, writer, n_current_batch)
                 loss = loss_classification + loss_explanation
                 loss.backward()
                 optimizer.step()
 
-                writer.add_scalar("Explainer_Training/Explanation", loss_explanation, global_step=n_current_batch)
-                writer.add_scalar("Explainer_Training/Classification", loss_classification, global_step=n_current_batch)
-                writer.add_scalar("Explainer_Training/Total", loss, global_step=n_current_batch)
+                global_step = n_current_batch*cfg.n_critic_batches
+                writer.add_scalar("Explainer_Training/Explanation", loss_explanation, global_step=global_step)
+                writer.add_scalar("Explainer_Training/Classification", loss_classification, global_step=global_step)
+                writer.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
 
                 # print statistics
                 # running_loss += loss.item()
@@ -104,14 +105,14 @@ class Explainer:
         writer.flush()
         writer.close()
 
-    def explanation_loss(self, critic_loader):
+    def explanation_loss(self, critic_loader, writer: SummaryWriter, n_current_batch: int):
         explanations = []
         for _, data in enumerate(critic_loader, 0):
             inputs, labels = data
             inputs = inputs.to(cfg.DEVICE)
             labels = labels.to(cfg.DEVICE)
             explanations.append(self.input_gradient(inputs, labels))
-        critic_end_of_training_loss: float = self.critic.train(critic_loader, explanations)
+        critic_end_of_training_loss: float = self.critic.train(critic_loader, explanations, writer, n_current_batch)
         return critic_end_of_training_loss
 
     def input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:

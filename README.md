@@ -20,6 +20,7 @@ Run `python3 main.py -h` to show available options to run.
 
 * `pip install -r requirements.txt`
 * If CUDA is too old, check out which previous versions of torch to install [here](https://pytorch.org/get-started/previous-versions/).
+    * get the newest pytorch version that still works with your CUDA version.
     * for example, for CUDA version 10.1, do 
 
 ```
