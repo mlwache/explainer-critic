@@ -16,6 +16,10 @@ class Critic:
         self.classifier = Net(accepts_additional_explanations=False)
         self.classifier = self.classifier.to(cfg.DEVICE)
 
+    def reset(self):
+        """Resets to a new un-trained classifier."""
+        self.classifier = Net(accepts_additional_explanations=False)
+
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor], writer: SummaryWriter, n_explainer_batch: int) -> float:
         # todo: outsource to Net
         critic_loss: Module = cfg.LOSS
@@ -25,9 +29,7 @@ class Critic:
         data: list
         for n_current_batch, data in enumerate(critic_loader):  # i is the index of the current batch.
 
-            # only train on a part of the samples.
-            if n_current_batch >= cfg.n_critic_batches:
-                break
+            assert n_current_batch <= cfg.n_critic_batches
 
             # get the inputs; data is a list of [inputs, labels]
             inputs: Tensor

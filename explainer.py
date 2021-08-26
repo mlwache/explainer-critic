@@ -70,6 +70,8 @@ class Explainer:
 
                 assert n_current_batch < cfg.n_training_batches
 
+                self.critic.reset()
+
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
                 inputs = inputs.to(cfg.DEVICE)
