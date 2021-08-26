@@ -23,7 +23,7 @@ class Critic:
 
         end_of_training_loss: float = 0.0
         data: list
-        for n_current_batch, data in enumerate(critic_loader, 0):  # i is the index of the current batch.
+        for n_current_batch, data in enumerate(critic_loader):  # i is the index of the current batch.
 
             # only train on a part of the samples.
             if n_current_batch >= cfg.n_critic_batches:

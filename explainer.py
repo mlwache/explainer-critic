@@ -66,11 +66,9 @@ class Explainer:
         for epoch in range(cfg.n_epochs):
 
             # running_loss = 0.0
-            for n_current_batch, data in enumerate(train_loader, 0):
+            for n_current_batch, data in enumerate(train_loader):
 
-                # only train on a part of the samples.
-                if n_current_batch >= cfg.n_training_batches:
-                    break
+                assert n_current_batch < cfg.n_training_batches
 
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
@@ -105,10 +103,9 @@ class Explainer:
         writer.flush()
         writer.close()
 
-    def explanation_loss(self, critic_loader, writer: SummaryWriter, n_current_batch: int):
+    def explanation_loss(self, critic_loader: DataLoader, writer: SummaryWriter, n_current_batch: int):
         explanations = []
-        for _, data in enumerate(critic_loader, 0):
-            inputs, labels = data
+        for inputs, labels in critic_loader:
             inputs = inputs.to(cfg.DEVICE)
             labels = labels.to(cfg.DEVICE)
             explanations.append(self.input_gradient(inputs, labels))

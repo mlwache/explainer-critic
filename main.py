@@ -93,6 +93,12 @@ def main():
 
 # noinspection PyShadowingNames
 def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
+
+    # dataset splits for the different parts of training and testing
+    training_set: MNIST
+    critic_set: MNIST
+    test_set: MNIST
+
     mean_mnist = 0.1307
     std_dev_mnist = 0.3081
     transform_mnist = transforms.Compose(
@@ -107,7 +113,8 @@ def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     with warnings.catch_warnings():  # Ignore warning, as it's caused by the underlying functional,
         # and I think would require me to change the site-packages in order to fix it.
         warnings.simplefilter("ignore")
-        training_set: MNIST = torchvision.datasets.MNIST('./data', train=True, download=True, transform=transform_mnist)
+        training_and_critic_set: MNIST = torchvision.datasets.MNIST('./data', train=True, download=True,
+                                                                    transform=transform_mnist)
         # loads the data to .data folder
         # ignores the UserWarning: The given NumPy array is not writeable,
         # and PyTorch does not support non-writeable tensors.
@@ -116,19 +123,19 @@ def load_data() -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
         # or make it writeable before converting it to a tensor.
         # This type of warning will be suppressed for the rest of this program.
 
-    # print(f"training set: {training_set}")
+    n_spare_samples = len(training_and_critic_set) - cfg.n_training_samples - cfg.n_critic_samples
+    assert n_spare_samples >= 0
+    split = [cfg.n_training_samples, cfg.n_critic_samples, n_spare_samples]
+    training_set, critic_set, _ = torch.utils.data.random_split(training_and_critic_set, split)
+
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=cfg.batch_size,
                                                                 shuffle=True, num_workers=0)
-    test_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
-    critic_set: MNIST
-
-    split = [int(len(test_set) * 0.5), int(len(test_set) * 0.5)]
-    test_set, critic_set = torch.utils.data.random_split(test_set, split)
-
-    test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
-                                                               shuffle=True, num_workers=0)
     critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=cfg.batch_size,
                                                                  shuffle=False, num_workers=0)
+
+    test_set = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
+    test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
+                                                               shuffle=True, num_workers=0)
     return train_loader, test_loader, critic_loader
 
 
