@@ -3,12 +3,12 @@ import torch.nn as nn
 from torch import Tensor
 import warnings
 import torch
-from config import default_config as cfg
 
 
 class Net(nn.Module):
-    def __init__(self, accepts_additional_explanations: bool):
+    def __init__(self, accepts_additional_explanations: bool, cfg):
         super().__init__()
+        self.cfg = cfg
         self.accepts_additional_explanations = accepts_additional_explanations
         if accepts_additional_explanations:
             # noinspection PyTypeChecker
@@ -32,9 +32,9 @@ class Net(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         if self.accepts_additional_explanations:
             print(x.size(), " x.size()")
-            assert x.size() == torch.Size([cfg.batch_size, 2, 1, 28, 28])
+            assert x.size() == torch.Size([self.cfg.batch_size, 2, 1, 28, 28])
         else:
-            assert x.size() == torch.Size([cfg.batch_size, 1, 28, 28])
+            assert x.size() == torch.Size([self.cfg.batch_size, 1, 28, 28])
         with warnings.catch_warnings():  # ignore the named tensor warning as it's not important,
             # and it adds visual clutter. (It's not important because I will keep the venv stable,
             # and my code is not critical for anyone. Warning Text:
@@ -53,7 +53,7 @@ class Net(nn.Module):
         x = f.dropout(x, training=self.training)
         x = self.fc2(x)
         x = f.log_softmax(x, dim=-1)
-        assert x.size() == torch.Size([cfg.batch_size, len(cfg.CLASSES)])
+        assert x.size() == torch.Size([self.cfg.batch_size, len(self.cfg.CLASSES)])
         return x   # Implicit dimension choice for log_softmax
         # has been deprecated. Just using the last dimension for now.
         # (https://stackoverflow.com/questions/49006773/userwarning-implicit-dimension-choice-for-log-softmax-has-been-deprecated)
