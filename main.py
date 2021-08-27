@@ -77,11 +77,11 @@ def load_data() -> tuple[DataLoader[Any], DataLoader[Any]]:
 
     # print(f"training set: {training_set}")
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=cfg.batch_size,
-                                                                shuffle=True, num_workers=2)
+                                                                shuffle=True, num_workers=0)
     test_set: MNIST = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
     # print(f"test set: {test_set}")
     test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=cfg.batch_size,
-                                                               shuffle=True, num_workers=2)
+                                                               shuffle=True, num_workers=0)
     return train_loader, test_loader
 
 

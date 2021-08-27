@@ -21,11 +21,11 @@ class Config:
         return self.n_training_samples // self.batch_size
 
 
-default_config = Config(batch_size=4,
+default_config = Config(batch_size=64,
                         learning_rate=0.001,
                         momentum=0.9,
                         path_to_models='./models/mnist_net.pth',
                         classes=list(range(10)),
-                        n_training_samples=2000,
-                        n_test_samples=100,
+                        n_training_samples=20000,
+                        n_test_samples=128,
                         n_epochs=1)
