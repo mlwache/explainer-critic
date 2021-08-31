@@ -3,7 +3,7 @@ import torch
 
 from torch.utils.data.dataloader import DataLoader
 from torch import Tensor
-from typing import Any
+from typing import Any, Tuple
 from torch.optim import Optimizer
 
 from torch.nn.modules import Module
@@ -20,6 +20,7 @@ class Explainer:
         self.classifier = Net(accepts_additional_explanations=False, cfg=cfg)
         self.classifier = self.classifier.to(cfg.DEVICE)
         self.critic = Critic(cfg)
+
         self.cfg = cfg
 
     def compute_accuracy(self, test_loader: DataLoader[Any]):
@@ -52,20 +53,29 @@ class Explainer:
     def save_model(self):
         torch.save(self.classifier.state_dict(), self.cfg.PATH_TO_MODELS)
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any]):
+    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any] = None,
+              use_critic: bool = True) -> Tuple[float, float]:
+        # check Argument validity
+        assert not (use_critic and critic_loader is None)
+        # assure the critic isn't used
+        if not use_critic:
+            critic_loader = None
+
         classification_loss: Module = self.cfg.LOSS
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
         optimizer: Optimizer = self.cfg.optimizer(self.classifier.parameters())
 
-        for epoch in range(self.cfg.n_epochs):
+        initial_loss: float = 0.0
+        end_of_training_loss: float = 0.0
 
-            # running_loss = 0.0
+        for epoch in range(self.cfg.n_epochs):
+            loss_explanation: float = 0.0
             for n_current_batch, data in enumerate(train_loader):
 
                 assert n_current_batch < self.cfg.n_training_batches
-
-                self.critic.reset()
+                if use_critic:
+                    self.critic.reset()
 
                 # get the inputs; data is a list of [inputs, labels]
                 inputs, labels = data
@@ -79,27 +89,51 @@ class Explainer:
                 outputs = self.classifier(inputs)
                 assert outputs.device.type == self.cfg.DEVICE
                 loss_classification = classification_loss(outputs, labels)
-                loss_explanation = self.explanation_loss(critic_loader, n_current_batch)
-                loss = loss_classification + loss_explanation
+                if use_critic:
+                    loss_explanation = self.explanation_loss(critic_loader, n_current_batch)
+                    loss = loss_classification + loss_explanation
+                else:
+                    loss = loss_classification
+                if n_current_batch == 0:
+                    initial_loss = loss.item()
                 loss.backward()
                 optimizer.step()
 
-                global_step = n_current_batch*self.cfg.n_critic_batches
-                self.cfg.WRITER.add_scalar("Explainer_Training/Explanation", loss_explanation, global_step=global_step)
-                self.cfg.WRITER.add_scalar("Explainer_Training/Classification", loss_classification,
-                                           global_step=global_step)
-                self.cfg.WRITER.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
+                self.add_scalars_to_writer(loss, loss_classification, loss_explanation, n_current_batch)
 
-                # print statistics
-                print(f'explainer [batch  {n_current_batch}] \n'
-                      f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
-                      f' + {loss_explanation:.3f}(explanation)')
-                if self.cfg.rtpt_enabled:
-                    self.cfg.RTPT_OBJECT.step(subtitle=f"loss={loss:2.2f}")
-        self.cfg.WRITER.flush()
-        self.cfg.WRITER.close()
+                self.print_statistics(loss, loss_classification, loss_explanation, n_current_batch)
 
-    def explanation_loss(self, critic_loader: DataLoader, n_current_batch: int):
+                end_of_training_loss = loss.item()
+
+        self.terminate_writer()
+
+        return initial_loss, end_of_training_loss
+
+    def terminate_writer(self):
+        if hasattr(self.cfg, "WRITER"):
+            self.cfg.WRITER.flush()
+            self.cfg.WRITER.close()
+
+    def print_statistics(self, loss, loss_classification, loss_explanation, n_current_batch):
+        # print statistics
+        print(f'explainer [batch  {n_current_batch}] \n'
+              f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
+              f' + {loss_explanation:.3f}(explanation)')
+        if self.cfg.rtpt_enabled:
+            self.cfg.RTPT_OBJECT.step(subtitle=f"loss={loss:2.2f}")
+
+    def add_scalars_to_writer(self, loss, loss_classification, loss_explanation, n_current_batch):
+
+        global_step = n_current_batch * self.cfg.n_critic_batches if self.cfg.n_critic_batches != 0 else n_current_batch
+
+        if hasattr(self.cfg, "WRITER"):
+            self.cfg.WRITER.add_scalar("Explainer_Training/Explanation", loss_explanation,
+                                       global_step=global_step)
+            self.cfg.WRITER.add_scalar("Explainer_Training/Classification", loss_classification,
+                                       global_step=global_step)
+            self.cfg.WRITER.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
+
+    def explanation_loss(self, critic_loader: DataLoader, n_current_batch: int) -> float:
         explanations = []
         for inputs, labels in critic_loader:
             inputs = inputs.to(self.cfg.DEVICE)

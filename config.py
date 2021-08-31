@@ -49,7 +49,8 @@ class Config:
                                 max_iterations=self.n_training_batches)
         self.MNIST_TOTAL_SAMPLES = 20000
         self.TIMES_TO_PRINT_CRITIC = 10
-        n_total_samples = self.n_training_samples + self.n_training_samples + self.n_critic_samples
+        n_total_samples = self.n_training_samples + self.n_test_samples + self.n_critic_samples
+        # print(f'{n_total_samples=}, {self.n_training_samples=}, {self.n})
         assert n_total_samples <= self.MNIST_TOTAL_SAMPLES, f"MNIST only has {self.MNIST_TOTAL_SAMPLES} samples."
         self.set_device()
 
@@ -101,8 +102,8 @@ test_config = Config(name="test_config",
                      rtpt_enabled=False,
                      )
 
-critic_test_config = Config(name="critic_test_config",
-                            batch_size=80,
+critic_only_config = Config(name="critic_test_config",
+                            batch_size=128,
                             learning_rate=0.001,
                             momentum=0.9,
                             n_training_batches=2,
@@ -112,3 +113,15 @@ critic_test_config = Config(name="critic_test_config",
                             render_enabled=False,
                             rtpt_enabled=False,
                             )
+
+classification_only_cfg = Config(name="classification_only_config",
+                                 batch_size=critic_only_config.batch_size,
+                                 learning_rate=critic_only_config.batch_size,
+                                 momentum=critic_only_config.momentum,
+                                 n_test_batches=critic_only_config.n_test_batches,
+                                 n_epochs=critic_only_config.n_epochs,
+                                 render_enabled=critic_only_config.render_enabled,
+                                 rtpt_enabled=critic_only_config.render_enabled,
+                                 n_training_batches=100,
+                                 n_critic_batches=0,
+                                 )

@@ -160,7 +160,7 @@ def set_sharing_strategy():
     torch.multiprocessing.set_sharing_strategy('file_system')
 
 
-def make_tensorboard_writer(cfg):
+def make_tensorboard_writer(cfg: Config):
     os.makedirs(cfg.LOG_DIR, exist_ok=True)
     cfg.WRITER = SummaryWriter(cfg.LOG_DIR)
 
@@ -171,7 +171,7 @@ def start_rtpt(cfg: Config):
         cfg.RTPT_OBJECT.start()
 
 
-def write_config_to_log(cfg):
+def write_config_to_log(cfg: Config):
     # Write config to log file
     with open(os.path.join(cfg.LOG_DIR, "config.json"), 'w') as f:
         json_dump: str = json.dumps(cfg.__dict__, default=lambda o: '<not serializable>')
@@ -179,7 +179,7 @@ def write_config_to_log(cfg):
 
 
 def setup(cfg: Config):
-    set_config_from_arguments(config)
+    set_config_from_arguments(cfg)
     set_sharing_strategy()
     make_tensorboard_writer(cfg)
     write_config_to_log(cfg)
