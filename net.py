@@ -6,7 +6,7 @@ import torch
 
 
 class Net(nn.Module):
-    def __init__(self, accepts_additional_explanations: bool, cfg):
+    def __init__(self, cfg, accepts_additional_explanations: bool = False):
         super().__init__()
         self.cfg = cfg
         self.accepts_additional_explanations = accepts_additional_explanations

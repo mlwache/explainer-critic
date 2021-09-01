@@ -9,10 +9,10 @@ from config import classification_only_cfg as ex_cfg
 
 
 def test_critic_makes_progress_without_explanations():
+    # TODO: import all of this from experiments
     *_, critic_loader = main.load_data(ct_cfg)
     critic = Critic(ct_cfg)
-    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations=[], n_explainer_batch=0,
-                                                      use_explanations=False)
+    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations=[], n_explainer_batch=0)
     assert abs(initial_loss - np.log(len(ct_cfg.CLASSES))) < 0.1
     assert end_of_training_loss < 2.28
     assert initial_loss - end_of_training_loss > 0.03

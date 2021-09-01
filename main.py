@@ -44,7 +44,7 @@ def main(cfg: Config):
         Vis.amplify_and_show(input_gradient)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
-    explainer.train(train_loader, critic_loader)
+    explainer.train(train_loader=train_loader, critic_loader=critic_loader)
     print('Finished Explainer Training')
 
     print(f'Saving the model to {cfg.PATH_TO_MODELS}.')
