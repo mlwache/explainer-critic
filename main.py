@@ -35,6 +35,12 @@ def main(cfg: Config):
 
         Vis.show_some_sample_images(some_train_images, some_train_labels)
         Vis.show_some_sample_images(some_test_images, some_test_labels)
+        # Todo: add to config (or to dataset?)
+        mean_mnist = 0.1307
+        std_dev_mnist = 0.3081
+        some_train_images = some_train_images*std_dev_mnist + mean_mnist
+        combined_image = torchvision.utils.make_grid(some_train_images)
+        # cfg.WRITER.add_image("some training images", combined_image)
 
     explainer = Explainer(cfg)
 
@@ -42,6 +48,9 @@ def main(cfg: Config):
         print('This is what the gradient looks like before training!')
         input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
         Vis.amplify_and_show(input_gradient)
+        amplified_gradient = Vis.amplify(input_gradient)
+        grid_grad = torchvision.utils.make_grid(amplified_gradient)
+        cfg.WRITER.add_image("gradient", grid_grad)
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
     explainer.train(train_loader=train_loader, critic_loader=critic_loader)

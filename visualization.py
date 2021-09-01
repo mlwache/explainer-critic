@@ -1,4 +1,6 @@
 # from typing import Any, Iterator
+from typing import Union
+
 from torch import Tensor
 
 import matplotlib.pyplot as plt
@@ -37,6 +39,11 @@ class Visualizer:
 
     @staticmethod
     def amplify_and_show(images: Tensor):
+        amplified_images = Visualizer.amplify(images)
+        Visualizer.image_show(amplified_images)
+
+    @staticmethod
+    def amplify(images):
         amplified_images = torch.empty_like(images, device=cfg.DEVICE)
         for i, img in enumerate(images):
             maximum_brightness = torch.max(img)
@@ -44,7 +51,7 @@ class Visualizer:
             maximum_value = max(abs(maximum_brightness), abs(minimum_brightness))
             # divide by the highest absolute value, so that the resulting values are all in [-1,1] :
             amplified_images[i] = torch.div(img, maximum_value)
-        Visualizer.image_show(amplified_images)
+        return amplified_images
 
 #     @staticmethod
 #     def show_computation_graph(labels, parameters):

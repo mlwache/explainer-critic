@@ -87,8 +87,7 @@ class Explainer(Learner):
         # forward + backward + optimize
         outputs = self.classifier(inputs)
         loss_classification = loss_function(outputs, labels)
-        # loss = self._add_explanation_loss(critic_loader, loss_classification, n_current_batch)
-        loss = loss_classification
+        loss = self._add_explanation_loss(critic_loader, loss_classification, n_current_batch)
         loss.backward()
         optimizer.step()
         self._sanity_check_batch_device(n_current_batch, outputs)
