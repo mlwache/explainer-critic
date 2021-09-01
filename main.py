@@ -20,7 +20,7 @@ from torch.utils.tensorboard import SummaryWriter
 # local imports
 from config import default_config as config, Config
 from explainer import Explainer
-from visualization import Visualizer as Vis
+from visualization import Visualizer as Vis, ModelForVisualizingComputationGraph
 
 
 def main(cfg: Config):
@@ -51,6 +51,10 @@ def main(cfg: Config):
         amplified_gradient = Vis.amplify(input_gradient)
         grid_grad = torchvision.utils.make_grid(amplified_gradient)
         cfg.WRITER.add_image("gradient", grid_grad)
+        cfg.WRITER.add_graph(explainer.classifier, some_train_images)
+        # with torch.no_grad():
+        #     cfg.WRITER.add_graph(ModelForVisualizingComputationGraph(explainer, critic_loader),
+        #                          [some_train_images, some_train_labels])
 
     print(f'Training the Explainer on {cfg.n_training_samples} samples...')
     explainer.train(train_loader=train_loader, critic_loader=critic_loader)

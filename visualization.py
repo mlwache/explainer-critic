@@ -1,7 +1,7 @@
 # from typing import Any, Iterator
 from typing import Union
 
-from torch import Tensor
+from torch import Tensor, nn
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,7 +10,10 @@ import torchvision
 from torchvision.transforms import functional
 # from torchviz import make_dot
 from config import default_config as cfg
+
+
 # from explainer import Explainer
+from explainer import Explainer
 
 
 class Visualizer:
@@ -53,7 +56,25 @@ class Visualizer:
             amplified_images[i] = torch.div(img, maximum_value)
         return amplified_images
 
+
 #     @staticmethod
 #     def show_computation_graph(labels, parameters):
 #         raise NotImplementedError
 # #        make_dot(y, parameters)
+
+class ModelForVisualizingComputationGraph(nn.Module):
+    def __init__(self, explainer, critic_loader):
+        super().__init__()
+        self.explainer = explainer
+        self.critic_loader = critic_loader
+
+    def forward(self, inputs: Tensor, labels: Tensor):
+        # TODO: just get one batch
+
+        outputs = self.explainer.classifier(inputs)
+        loss_classification = cfg.LOSS(outputs, labels)
+        loss = self.explainer._add_explanation_loss(self.critic_loader, loss_classification, 0)
+
+        # self.explainer.train(train_loader,critic_loader)
+        return loss
+
