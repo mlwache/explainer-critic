@@ -116,7 +116,7 @@ critic_only_config = Config(name="critic_test_config",
 
 classification_only_cfg = Config(name="classification_only_config",
                                  batch_size=critic_only_config.batch_size,
-                                 learning_rate=critic_only_config.batch_size,
+                                 learning_rate=critic_only_config.learning_rate,
                                  momentum=critic_only_config.momentum,
                                  n_test_batches=critic_only_config.n_test_batches,
                                  n_epochs=critic_only_config.n_epochs,

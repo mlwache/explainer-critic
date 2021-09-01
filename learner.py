@@ -12,8 +12,8 @@ Loss = float
 
 class Learner:
     def __init__(self, cfg: Config):
-        self.classifier: Net = Net(cfg=cfg)
-        self.classifier = self.classifier.to(cfg.DEVICE)
+        classifier: Net = Net(cfg=cfg)
+        self.classifier = classifier.to(cfg.DEVICE)
         self.cfg: Config = cfg
 
     # def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
