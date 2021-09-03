@@ -1,4 +1,4 @@
-from config import Config
+from config import SimpleArgumentParser
 from learner import Learner
 from net import Net
 from typing import Any, List, Tuple
@@ -12,7 +12,7 @@ Loss = float
 
 class Critic(Learner):
 
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: SimpleArgumentParser):
         super().__init__(cfg)
 
     def reset(self):
@@ -22,7 +22,7 @@ class Critic(Learner):
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
               n_explainer_batch: int) -> Tuple[float, float]:
         critic_loss: Module = self.cfg.LOSS
-        optimizer: Optimizer = self.cfg.optimizer(self.classifier.parameters())
+        optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
         loss: float = 0.0
         initial_loss: float = 0.0

@@ -7,3 +7,5 @@ tensorboard~=2.6.0
 
 # my fork of the captum package in which the computation graph is retained.
 -e git+https://github.com/mlwache/captum@645fc29a865ca56c65082b36d40bfd385c5b9447#egg=captum
+# argparse~=1.4.0
+typed-argument-parser~=1.7.1

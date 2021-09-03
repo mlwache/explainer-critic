@@ -7,7 +7,8 @@ from typing import Any, Tuple
 from torch.optim import Optimizer
 
 from torch.nn.modules import Module
-from config import Config
+
+from config import SimpleArgumentParser
 from critic import Critic
 from learner import Learner
 
@@ -19,7 +20,7 @@ Loss = float
 class Explainer(Learner):
     classifier: Net
 
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: SimpleArgumentParser):
         super().__init__(cfg)
 
     def compute_accuracy(self, test_loader: DataLoader[Any]):
@@ -29,7 +30,7 @@ class Explainer(Learner):
         # since we're not training, we don't need to calculate the gradients for our outputs
         with torch.no_grad():
             for i, data in enumerate(test_loader):
-                assert i <= self.cfg.n_test_batches
+                assert i <= self.cfg.n_test_samples
                 labels: Tensor
                 images, labels = data
                 images = images.to(self.cfg.DEVICE)
@@ -62,16 +63,16 @@ class Explainer(Learner):
         loss_function_classification: Module = self.cfg.LOSS
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
-        optimizer: Optimizer = self.cfg.optimizer(self.classifier.parameters())
+        optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
         loss: float = 0.0
         initial_loss: float = 0.0
-        for epoch in range(self.cfg.n_epochs):
-            for n_current_batch, (inputs, labels) in enumerate(train_loader):
-                loss = self._process_batch(loss_function_classification, inputs, labels,
-                                           n_current_batch, optimizer, critic_loader=critic_loader)
-                if n_current_batch == 0:
-                    initial_loss = loss
+        # for epoch in range(self.cfg.n_epochs):
+        for n_current_batch, (inputs, labels) in enumerate(train_loader):
+            loss = self._process_batch(loss_function_classification, inputs, labels,
+                                       n_current_batch, optimizer, critic_loader=critic_loader)
+            if n_current_batch == 0:
+                initial_loss = loss
         self.terminate_writer()
 
         return initial_loss, loss

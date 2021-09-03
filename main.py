@@ -1,62 +1,58 @@
-
-# general imports
-import argparse
-import warnings
-from typing import Iterator, Any, Tuple
-
-# torch related imports
-from torch import Tensor
-import torch.utils.data
-from torch.utils.data.dataloader import DataLoader
-from torchvision.datasets import MNIST
-import torchvision
-import torchvision.transforms as transforms
-
 # imports necessary for Tensorboard Logging
 import json
 import os
-from torch.utils.tensorboard import SummaryWriter
+import warnings
+from typing import Iterator, Any, Tuple
+
+import torch.utils.data
+import torchvision
+import torchvision.transforms as transforms
+
+# torch related imports
+from rtpt import RTPT
+from torch import Tensor
+from torch.utils.data.dataloader import DataLoader
+from torchvision.datasets import MNIST
 
 # local imports
-from config import default_config as config, Config
+from config import SimpleArgumentParser
 from explainer import Explainer
 from visualization import Visualizer as Vis
 
 
-def main(cfg: Config):
-
+def main(args: SimpleArgumentParser):
     print('Loading Data...')
-    train_loader, test_loader, critic_loader = load_data(cfg)
-    some_train_images, some_train_labels = get_one_batch_of_images(train_loader, cfg)
-    some_test_images, some_test_labels = get_one_batch_of_images(test_loader, cfg)
+    train_loader, test_loader, critic_loader = load_data(args)
+    some_train_images, some_train_labels = get_one_batch_of_images(train_loader, args)
+    some_test_images, some_test_labels = get_one_batch_of_images(test_loader, args)
 
-    if cfg.render_enabled:
+    if args.render_enabled:
         print('Here are some training images and test images!')
 
-        Vis.show_some_sample_images(some_train_images, some_train_labels)
-        Vis.show_some_sample_images(some_test_images, some_test_labels)
+        Vis.show_some_sample_images(some_train_images, some_train_labels, args)
+        Vis.show_some_sample_images(some_test_images, some_test_labels, args)
         # Todo: add to config (or to dataset?)
         mean_mnist = 0.1307
         std_dev_mnist = 0.3081
-        some_train_images = some_train_images*std_dev_mnist + mean_mnist
+        some_train_images = some_train_images * std_dev_mnist + mean_mnist
         combined_image = torchvision.utils.make_grid(some_train_images)
-        # cfg.WRITER.add_image("some training images", combined_image)
+        args.WRITER.add_image("some training images", combined_image)
 
-    explainer = Explainer(cfg)
+    explainer = Explainer(args)
 
-    if cfg.render_enabled:
+    if args.render_enabled:
         print('This is what the gradient looks like before training!')
         input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
-        Vis.amplify_and_show(input_gradient)
-        amplified_gradient = Vis.amplify(input_gradient)
+        Vis.amplify_and_show(input_gradient, args)
+        amplified_gradient = Vis.amplify(input_gradient, args)
         grid_grad = torchvision.utils.make_grid(amplified_gradient)
-        cfg.WRITER.add_image("gradient", grid_grad)
+        args.WRITER.add_image("gradient", grid_grad)
 
-    print(f'Training the Explainer on {cfg.n_training_samples} samples...')
+    print(f'Training the Explainer on {args.n_training_samples} samples...')
     explainer.train(train_loader=train_loader, critic_loader=critic_loader)
     print('Finished Explainer Training')
 
-    print(f'Saving the model to {cfg.PATH_TO_MODELS}.')
+    print(f'Saving the model to {args.PATH_TO_MODELS}.')
     explainer.save_model()
     print('Model Saved.')
 
@@ -67,28 +63,16 @@ def main(cfg: Config):
 
     print('Evaluating the Explainer')
     explainer_accuracy = explainer.compute_accuracy(test_loader)
-    print(f'Explainer Accuracy on {cfg.n_test_samples} test images: {100 * explainer_accuracy} %')
+    print(f'Explainer Accuracy on {args.n_test_samples} test images: {100 * explainer_accuracy} %')
 
-    if cfg.render_enabled:
+    if args.render_enabled:
         print('This is what the gradient looks like after training!')
         input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
-        Vis.amplify_and_show(input_gradient)
-
-#         print('Showing the explainer\'s computation graph')
-#         show_computation_graph(explainer.classifier, some_test_images)
-#         print('Showing the critic\'s computation graph')
-#         show_computation_graph(explainer.critic.classifier, some_test_images)
-#
-#
-# def show_computation_graph(net: Net, images):
-#     parameters = net.parameters()
-#     y = net(images)
-#     Vis.show_computation_graph(y, parameters)
+        Vis.amplify_and_show(input_gradient, args)
 
 
 # noinspection PyShadowingNames
 def load_data(cfg) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
-
     # dataset splits for the different parts of training and testing
     training_set: MNIST
     critic_set: MNIST
@@ -148,53 +132,33 @@ def get_one_batch_of_images(loader: DataLoader[Any], cfg) -> Tuple[Tensor, Tenso
     return images, labels
 
 
-def set_config_from_arguments(cfg: Config):
-    parser = argparse.ArgumentParser(description='Run the explainer-critic on MNIST.')
-    config_dict = cfg.__dict__
-
-    # Add an argument for all attributes in the config dataclass object
-    for attribute_name in config_dict.keys():
-        parser.add_argument(f'--{attribute_name}', type=type(config_dict[attribute_name]),
-                            default=config_dict[attribute_name])
-    passed_arguments = parser.parse_args()
-    for attribute_name in config_dict.keys():
-        passed_argument = getattr(passed_arguments, attribute_name)
-        setattr(cfg, attribute_name, passed_argument)
-        # globals()["cfg."+attribute_name] = argument
-        # the left hand side here is the variable whose name is "cfg." + the string saved in attribute_name
-
-
 def set_sharing_strategy():
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
 
 
-def make_tensorboard_writer(cfg: Config):
-    os.makedirs(cfg.LOG_DIR, exist_ok=True)
-    cfg.WRITER = SummaryWriter(cfg.LOG_DIR)
-
-
-def start_rtpt(cfg: Config):
+def start_rtpt(rtpt_object: RTPT):
     # using rtpt object to name the process
-    if cfg.rtpt_enabled:
-        cfg.RTPT_OBJECT.start()
+    if rtpt_object is not None:
+        rtpt_object.start()
 
 
-def write_config_to_log(cfg: Config):
+def write_config_to_log(arg: SimpleArgumentParser):
     # Write config to log file
-    with open(os.path.join(cfg.LOG_DIR, "config.json"), 'w') as f:
-        json_dump: str = json.dumps(cfg.__dict__, default=lambda o: '<not serializable>')
+    with open(os.path.join(arg.LOG_DIR, "config.json"), 'w') as f:
+        json_dump: str = json.dumps(arg.__dict__, default=lambda o: '<not serializable>')
         f.write(json_dump)
 
 
-def setup(cfg: Config):
-    set_config_from_arguments(cfg)
+def setup() -> SimpleArgumentParser:
+    args = SimpleArgumentParser()
+    args.parse_args()
     set_sharing_strategy()
-    make_tensorboard_writer(cfg)
-    write_config_to_log(cfg)
-    start_rtpt(cfg)
+    write_config_to_log(args)
+    start_rtpt(args.RTPT_OBJECT)
+    return args
 
 
 if __name__ == '__main__':
-    setup(config)
-    main(config)
+    arguments = setup()
+    main(arguments)

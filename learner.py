@@ -1,20 +1,15 @@
-# from typing import List, Any
-#
-# from torch import nn, Tensor
-# from torch.optim import Optimizer
-# from torch.utils.data import DataLoader
 
-from config import Config
+from config import SimpleArgumentParser
 from net import Net
 
 Loss = float
 
 
 class Learner:
-    def __init__(self, cfg: Config):
+    def __init__(self, cfg: SimpleArgumentParser):
         classifier: Net = Net(cfg=cfg)
         self.classifier = classifier.to(cfg.DEVICE)
-        self.cfg: Config = cfg
+        self.cfg: SimpleArgumentParser = cfg
 
     # def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
     #                    n_current_batch: int, optimizer: Optimizer, n_explainer_batch: int = 0,

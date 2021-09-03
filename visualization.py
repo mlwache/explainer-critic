@@ -1,16 +1,15 @@
 # from typing import Any, Iterator
-from typing import Union
-
-from torch import Tensor
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision
+from torch import Tensor
 from torchvision.transforms import functional
+
 # from torchviz import make_dot
-from config import default_config as cfg
 # from explainer import Explainer
+from config import SimpleArgumentParser
 
 
 class Visualizer:
@@ -31,20 +30,20 @@ class Visualizer:
         plt.show()
 
     @staticmethod
-    def show_some_sample_images(images, labels):
+    def show_some_sample_images(images, labels, args: SimpleArgumentParser):
         # show images
         Visualizer.image_show(images)
         # print labels
-        print('labels: ', ' '.join('%5s' % cfg.CLASSES[labels[j]] for j in range(cfg.batch_size)))
+        print('labels: ', ' '.join('%5s' % args.CLASSES[labels[j]] for j in range(args.batch_size)))
 
     @staticmethod
-    def amplify_and_show(images: Tensor):
-        amplified_images = Visualizer.amplify(images)
+    def amplify_and_show(images: Tensor, args: SimpleArgumentParser):
+        amplified_images = Visualizer.amplify(images, args)
         Visualizer.image_show(amplified_images)
 
     @staticmethod
-    def amplify(images):
-        amplified_images = torch.empty_like(images, device=cfg.DEVICE)
+    def amplify(images, args: SimpleArgumentParser):
+        amplified_images = torch.empty_like(images, device=args.DEVICE)
         for i, img in enumerate(images):
             maximum_brightness = torch.max(img)
             minimum_brightness = torch.min(img)
