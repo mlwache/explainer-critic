@@ -14,27 +14,6 @@ from time import time
 from tap import Tap
 
 
-def get_device():
-    if not torch.cuda.is_available():
-        print(f"No GPU found, falling back to CPU.")
-        return "cpu"
-    else:
-        return "cuda"
-
-
-def make_rtpt(rtpt_enabled: bool, n_training_batches: int) -> Optional[RTPT]:
-    if rtpt_enabled:
-        return RTPT(name_initials='mwache',
-                    experiment_name='explainer-critic',
-                    max_iterations=n_training_batches)
-    else:
-        return None
-
-
-def get_optimizer(learning_rate, momentum) -> Callable[[Union[Iterable[Tensor], Iterable[dict]]], SGD]:
-    return lambda parameters: optim.SGD(parameters, lr=learning_rate, momentum=momentum)
-
-
 class SimpleArgumentParser(Tap):
     # Training Details
     batch_size: int = 64
@@ -59,20 +38,43 @@ class SimpleArgumentParser(Tap):
     TIMES_TO_PRINT_CRITIC: int = 10
     CLASSES: list = list(range(10))
     LOSS: Module = nn.CrossEntropyLoss()
-    DEVICE: str = get_device()
-    RTPT_OBJECT: RTPT = make_rtpt(rtpt_enabled, n_training_batches)
     MNIST_TOTAL_SAMPLES: int = 20000
     LOG_DIR: str = f"./runs/{int(time())}"
+
+    DEVICE: str = ""
+    RTPT_OBJECT: RTPT = None
     WRITER: SummaryWriter = None
     OPTIMIZER: Callable[[Union[Iterable[Tensor], Iterable[dict]]], SGD] = None
 
     def process_args(self):
         n_total_samples = self.n_training_samples + self.n_test_samples + self.n_critic_samples
         assert n_total_samples <= self.MNIST_TOTAL_SAMPLES, f"{n_total_samples} in total are too much."
-        self.WRITER: SummaryWriter = SimpleArgumentParser.make_tensorboard_writer(self.LOG_DIR)
-        self.OPTIMIZER = get_optimizer(self.learning_rate, self.momentum)
+        self.WRITER: SummaryWriter = self.make_tensorboard_writer()
+        self.OPTIMIZER = self.get_optimizer()
+        self.DEVICE = SimpleArgumentParser.get_device()
+        self.RTPT_OBJECT = self.make_rtpt()
+
+    def make_tensorboard_writer(self) -> SummaryWriter:
+        os.makedirs(self.LOG_DIR, exist_ok=True)
+        return SummaryWriter(self.LOG_DIR)
 
     @staticmethod
-    def make_tensorboard_writer(log_dir: str) -> SummaryWriter:
-        os.makedirs(log_dir, exist_ok=True)
-        return SummaryWriter(log_dir)
+    def get_device():
+        if not torch.cuda.is_available():
+            print(f"No GPU found, falling back to CPU.")
+            return "cpu"
+        else:
+            return "cuda"
+
+    def make_rtpt(self) -> Optional[RTPT]:
+        if self.rtpt_enabled:
+            return RTPT(name_initials='mwache',
+                        experiment_name='explainer-critic',
+                        max_iterations=self.n_training_batches)
+        else:
+            return None
+
+    def get_optimizer(self) -> Callable[[Union[Iterable[Tensor],
+                                               Iterable[dict]]],
+                                        SGD]:
+        return lambda parameters: optim.SGD(parameters, lr=self.learning_rate, momentum=self.momentum)
