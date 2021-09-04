@@ -28,11 +28,6 @@ class SimpleArgumentParser(Tap):
     render_enabled: bool = False
     rtpt_enabled: bool = False
 
-    # number of samples follow accordingly
-    n_training_samples: int = n_training_batches * batch_size
-    n_critic_samples: int = n_critic_batches * batch_size
-    n_test_samples: int = n_test_batches * batch_size
-
     # config values that are rarely changed
     PATH_TO_MODELS: str = './models/mnist_net.pth'
     TIMES_TO_PRINT_CRITIC: int = 10
@@ -78,3 +73,17 @@ class SimpleArgumentParser(Tap):
                                                Iterable[dict]]],
                                         SGD]:
         return lambda parameters: optim.SGD(parameters, lr=self.learning_rate, momentum=self.momentum)
+
+    # number of samples follow accordingly
+
+    @property
+    def n_training_samples(self) -> int:
+        return self.n_training_batches * self.batch_size
+
+    @property
+    def n_critic_samples(self) -> int:
+        return self.n_critic_batches * self.batch_size
+
+    @property
+    def n_test_samples(self) -> int:
+        return self.n_test_batches * self.batch_size
