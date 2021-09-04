@@ -1,3 +1,5 @@
+from statistics import mean
+
 from config import SimpleArgumentParser
 from learner import Learner
 from net import Net
@@ -24,15 +26,13 @@ class Critic(Learner):
         critic_loss: Module = self.cfg.LOSS
         optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
-        loss: float = 0.0
-        initial_loss: float = 0.0
+        losses: List[float] = []
         for n_current_batch, (inputs, labels) in enumerate(critic_loader):
-            loss = self._process_batch(critic_loss, explanations,
-                                       inputs, labels, n_current_batch,
-                                       n_explainer_batch, optimizer)
-            if n_current_batch == 0:
-                initial_loss = loss
-        return initial_loss, loss
+            losses.append(self._process_batch(critic_loss, explanations,
+                                              inputs, labels, n_current_batch,
+                                              n_explainer_batch, optimizer))
+
+        return losses[0], super().smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, n_explainer_batch: int, optimizer) -> Loss:

@@ -3,7 +3,7 @@ import torch
 
 from torch.utils.data.dataloader import DataLoader
 from torch import Tensor, nn
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 from torch.optim import Optimizer
 
 from torch.nn.modules import Module
@@ -65,17 +65,14 @@ class Explainer(Learner):
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
         optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
-        loss: float = 0.0
-        initial_loss: float = 0.0
+        losses: List[float] = []
         # for epoch in range(self.cfg.n_epochs):
         for n_current_batch, (inputs, labels) in enumerate(train_loader):
-            loss = self._process_batch(loss_function_classification, inputs, labels,
-                                       n_current_batch, optimizer, critic_loader=critic_loader)
-            if n_current_batch == 0:
-                initial_loss = loss
+            losses.append(self._process_batch(loss_function_classification, inputs, labels,
+                                              n_current_batch, optimizer, critic_loader=critic_loader))
         self.terminate_writer()
 
-        return initial_loss, loss
+        return losses[0], super().smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
                        n_current_batch: int, optimizer: Optimizer,

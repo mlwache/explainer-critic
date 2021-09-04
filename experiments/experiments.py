@@ -17,6 +17,8 @@ def run_experiments():
 
 
 def train_critic_without_explanations(args: SimpleArgumentParser) -> Tuple[Loss, Loss]:
+    args.batch_size = 128
+    args.n_critic_batches = 100
     *_, critic_loader = main.load_data(args)
     critic = Critic(args)
     initial_loss, end_of_training_loss = critic.train(critic_loader, explanations=[], n_explainer_batch=0)
@@ -24,6 +26,8 @@ def train_critic_without_explanations(args: SimpleArgumentParser) -> Tuple[Loss,
 
 
 def train_explainer_only_classification(args: SimpleArgumentParser) -> Tuple[Loss, Loss]:
+    args.batch_size = 128
+    args.n_training_batches = 100
     train_loader, *_ = main.load_data(args)
     explainer = Explainer(args)
     initial_loss, end_of_training_loss = explainer.train(train_loader, use_critic=False)

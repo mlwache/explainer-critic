@@ -1,3 +1,5 @@
+from statistics import mean
+from typing import List
 
 from config import SimpleArgumentParser
 from net import Net
@@ -10,6 +12,15 @@ class Learner:
         classifier: Net = Net(cfg=cfg)
         self.classifier = classifier.to(cfg.DEVICE)
         self.cfg: SimpleArgumentParser = cfg
+
+    def smooth_end_losses(self, losses: List[float]) -> Loss:
+        """average the last quarter of the losses"""
+        last_few_losses = losses[-len(losses) // 4:len(losses)]
+        if last_few_losses:
+            return mean(last_few_losses)
+        else:
+            print("not enough losses to smooth")
+            return losses[-1]
 
     # def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
     #                    n_current_batch: int, optimizer: Optimizer, n_explainer_batch: int = 0,
