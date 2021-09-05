@@ -66,10 +66,10 @@ class Explainer(Learner):
         optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
         losses: List[float] = []
-        # for epoch in range(self.cfg.n_epochs):
-        for n_current_batch, (inputs, labels) in enumerate(train_loader):
-            losses.append(self._process_batch(loss_function_classification, inputs, labels,
-                                              n_current_batch, optimizer, critic_loader=critic_loader))
+        for _ in range(self.cfg.n_epochs):
+            for n_current_batch, (inputs, labels) in enumerate(train_loader):
+                losses.append(self._process_batch(loss_function_classification, inputs, labels,
+                                                  n_current_batch, optimizer, critic_loader=critic_loader))
         self.terminate_writer()
 
         return losses[0], super().smooth_end_losses(losses)

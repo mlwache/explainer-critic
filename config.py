@@ -24,6 +24,7 @@ class SimpleArgumentParser(Tap):
     n_training_batches: int = 50
     n_critic_batches: int = 50
     n_test_batches: int = 5
+    n_epochs: int = 1
 
     render_enabled: bool = False
     rtpt_enabled: bool = False
@@ -42,12 +43,15 @@ class SimpleArgumentParser(Tap):
     OPTIMIZER: Callable[[Union[Iterable[Tensor], Iterable[dict]]], SGD] = None
 
     def process_args(self):
-        n_total_samples = self.n_training_samples + self.n_test_samples + self.n_critic_samples
-        assert n_total_samples <= self.MNIST_TOTAL_SAMPLES, f"{n_total_samples} in total are too much."
+        self.assert_not_too_many_samples()
         self.WRITER: SummaryWriter = self.make_tensorboard_writer()
         self.OPTIMIZER = self.get_optimizer()
         self.DEVICE = SimpleArgumentParser.get_device()
         self.RTPT_OBJECT = self.make_rtpt()
+
+    def assert_not_too_many_samples(self):
+        n_total_training_samples = self.n_training_samples + self.n_critic_samples
+        assert n_total_training_samples <= self.MNIST_TOTAL_SAMPLES, f"{n_total_training_samples} are too much."
 
     def make_tensorboard_writer(self) -> SummaryWriter:
         os.makedirs(self.LOG_DIR, exist_ok=True)
