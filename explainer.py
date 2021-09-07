@@ -19,9 +19,11 @@ Loss = float
 
 class Explainer(Learner):
     classifier: Net
+    writer_step_offset: int
 
     def __init__(self, cfg: SimpleArgumentParser):
         super().__init__(cfg)
+        self.writer_step_offset = 0
 
     def compute_accuracy(self, test_loader: DataLoader[Any]):
         n_correct_samples: int = 0
@@ -52,6 +54,12 @@ class Explainer(Learner):
 
     def save_model(self):
         torch.save(self.classifier.state_dict(), self.cfg.PATH_TO_MODELS)
+
+    def pre_train(self, train_loader: DataLoader[Any]) -> Tuple[Loss, Loss]:
+        return self.train(train_loader, use_critic=False)
+
+    def set_writer_step_offset(self, pre_training_set_size: int, critic_set_size: int):
+        self.writer_step_offset = pre_training_set_size*critic_set_size
 
     def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any] = None,
               use_critic: bool = True) -> Tuple[Loss, Loss]:
@@ -123,7 +131,8 @@ class Explainer(Learner):
 
     def add_scalars_to_writer(self, loss, loss_classification, loss_explanation, n_current_batch):
 
-        global_step = n_current_batch * self.cfg.n_critic_batches if self.cfg.n_critic_batches != 0 else n_current_batch
+        global_step = self.writer_step_offset + n_current_batch * self.cfg.n_critic_batches if \
+            self.cfg.n_critic_batches != 0 else n_current_batch
 
         if hasattr(self.cfg, "WRITER"):
             self.cfg.WRITER.add_scalar("Explainer_Training/Explanation", loss_explanation,
@@ -141,7 +150,9 @@ class Explainer(Learner):
             explanations.append(self.input_gradient(inputs, labels))
 
         critic_end_of_training_loss: float
-        _, critic_end_of_training_loss = critic.train(critic_loader, explanations, n_current_batch)
+        n_current_batch_total = (self.writer_step_offset//len(critic_loader)) + n_current_batch
+        _, critic_end_of_training_loss = critic.train(critic_loader, explanations, n_current_batch_total)
+
         return critic_end_of_training_loss
 
     def input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:

@@ -22,6 +22,10 @@ class Learner:
             print("not enough losses to smooth")
             return losses[-1]
 
+    def reset(self):
+        """Resets to a new un-trained classifier."""
+        self.classifier = Net(cfg=self.cfg)
+
     # def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
     #                    n_current_batch: int, optimizer: Optimizer, n_explainer_batch: int = 0,
     #                    explanations: List[Tensor] = None, critic_loader: DataLoader[Any] = None) -> Loss:

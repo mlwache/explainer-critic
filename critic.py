@@ -1,8 +1,6 @@
-from statistics import mean
 
 from config import SimpleArgumentParser
 from learner import Learner
-from net import Net
 from typing import Any, List, Tuple
 from torch.utils.data.dataloader import DataLoader
 from torch.nn.modules import Module
@@ -16,10 +14,6 @@ class Critic(Learner):
 
     def __init__(self, cfg: SimpleArgumentParser):
         super().__init__(cfg)
-
-    def reset(self):
-        """Resets to a new un-trained classifier."""
-        self.classifier = Net(cfg=self.cfg)
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
               n_explainer_batch: int) -> Tuple[float, float]:
