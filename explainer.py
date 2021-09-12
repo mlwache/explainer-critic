@@ -13,6 +13,7 @@ from critic import Critic
 from learner import Learner
 
 from net import Net
+from visualization import ImageHandler
 
 Loss = float
 
@@ -147,7 +148,7 @@ class Explainer(Learner):
         for inputs, labels in critic_loader:
             inputs = inputs.to(self.cfg.DEVICE)
             labels = labels.to(self.cfg.DEVICE)
-            explanations.append(self.input_gradient(inputs, labels))
+            explanations.append(self.rescaled_input_gradient(inputs, labels))
 
         critic_end_of_training_loss: float
         n_current_batch_total = (self.writer_step_offset//len(critic_loader)) + n_current_batch
@@ -156,8 +157,9 @@ class Explainer(Learner):
         return critic_end_of_training_loss
 
     def input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
-        assert input_images.size() == torch.Size([self.cfg.batch_size, 1, 28, 28])
-        assert labels.size() == torch.Size([self.cfg.batch_size])
+        assert input_images.size()[1:] == torch.Size([1, 28, 28])
+        # usually but not always: torch.Size([self.cfg.batch_size, 1, 28, 28])
+        # assert labels.size() == torch.Size([self.cfg.batch_size])
         input_x_gradient = InputXGradient(self.classifier.forward)
         input_images.requires_grad = True
         gradient_x_input_one_image: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
@@ -166,6 +168,10 @@ class Explainer(Learner):
         # The gradient tensor is computed from other tensors on cfg.device, so it should be there.
         assert gradient.device.type == self.cfg.DEVICE
         return gradient
+
+    def rescaled_input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
+        gradient = self.input_gradient(input_images, labels)
+        return ImageHandler.re_scale_to_zero_one(gradient)
 
     def predict(self, images: Tensor) -> Tensor:
         outputs = self.classifier(images)

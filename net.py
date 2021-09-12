@@ -34,7 +34,8 @@ class Net(nn.Module):
             print(x.size(), " x.size()")
             assert x.size() == torch.Size([self.cfg.batch_size, 2, 1, 28, 28])
         else:
-            assert x.size() == torch.Size([self.cfg.batch_size, 1, 28, 28])
+            assert x.size()[1:] == torch.Size([1, 28, 28])
+            # usually but not always: torch.Size([self.cfg.batch_size, 1, 28, 28])
         with warnings.catch_warnings():  # ignore the named tensor warning as it's not important,
             # and it adds visual clutter. (It's not important because I will keep the venv stable,
             # and my code is not critical for anyone. Warning Text:
@@ -53,7 +54,9 @@ class Net(nn.Module):
         x = f.dropout(x, training=self.training)
         x = self.fc2(x)
         x = f.log_softmax(x, dim=-1)
-        assert x.size() == torch.Size([self.cfg.batch_size, len(self.cfg.CLASSES)])
+        assert x.size()[1] == len(self.cfg.CLASSES)
+        # usually but not always: torch.Size([self.cfg.batch_size, len(self.cfg.CLASSES)])
+
         return x   # Implicit dimension choice for log_softmax
         # has been deprecated. Just using the last dimension for now.
         # (https://stackoverflow.com/questions/49006773/userwarning-implicit-dimension-choice-for-log-softmax-has-been-deprecated)

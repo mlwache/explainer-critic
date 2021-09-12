@@ -1,26 +1,27 @@
 # from typing import Any, Iterator
+from typing import Any, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
 import torchvision
 from torch import Tensor
+from torch.utils.data import DataLoader
 from torchvision.transforms import functional
 
 # from torchviz import make_dot
-# from explainer import Explainer
-from config import SimpleArgumentParser
 
 
-class Visualizer:
+class ImageHandler:
 
     # function to show an image
     @staticmethod
-    def image_show(images):
+    def show_images(images: Tensor):
+        # assume image is scaled to [0,1]
+        assert 0 <= images.max() <= 1
+        assert 0 <= images.min() <= 1
         combined_image = torchvision.utils.make_grid(images)
         # invert image for better visibility
         inverted = functional.invert(combined_image)
-        # img_un_normalized = image / 2 + 0.5
         np_img = inverted.cpu().numpy()  # img_un_normalized.numpy()
         plt.imshow(np.transpose(np_img, (1, 2, 0)))  # .astype(np.uint8)*255)  # added `.astype(np.uint8)*255` here
         # to get rid of "clipping Data to valid range" error, but it's less easy with np.float, as this doesn't have
@@ -30,29 +31,58 @@ class Visualizer:
         plt.show()
 
     @staticmethod
-    def show_some_sample_images(images, labels, args: SimpleArgumentParser):
-        # show images
-        Visualizer.image_show(images)
-        # print labels
-        print('labels: ', ' '.join('%5s' % args.CLASSES[labels[j]] for j in range(args.batch_size)))
+    def rescale_and_show(images: Tensor):
+        amplified_images = ImageHandler.re_scale_to_zero_one(images)
+        ImageHandler.show_images(amplified_images)
 
     @staticmethod
-    def amplify_and_show(images: Tensor, args: SimpleArgumentParser):
-        amplified_images = Visualizer.amplify(images, args)
-        Visualizer.image_show(amplified_images)
-
-    @staticmethod
-    def amplify(images, args: SimpleArgumentParser):
-        amplified_images = torch.empty_like(images, device=args.DEVICE)
-        for i, img in enumerate(images):
-            maximum_brightness = torch.max(img)
-            minimum_brightness = torch.min(img)
-            maximum_value = max(abs(maximum_brightness), abs(minimum_brightness))
-            # divide by the highest absolute value, so that the resulting values are all in [-1,1] :
-            amplified_images[i] = torch.div(img, maximum_value)
-        return amplified_images
+    def re_scale_to_zero_one(images: Tensor):
+        # detach in order to be able to process like an ndarray.
+        images = abs(images.detach())
+        amplified_images: np.ndarray = np.interp(images, (images.min(), images.max()), (0, 1))
+        return Tensor(amplified_images)
 
 #     @staticmethod
 #     def show_computation_graph(labels, parameters):
 #         raise NotImplementedError
 # #        make_dot(y, parameters)
+    @staticmethod
+    def show_batch(args, loader: DataLoader[Any], explainer, additional_caption: str = ""):
+        some_images, some_labels = ImageHandler.get_one_batch_of_images(loader, args)
+        print('Here are some images!')
+        ImageHandler.visualize_input(args, some_images, additional_caption)
+        print('And their gradients!')
+        ImageHandler.visualize_gradient(args, explainer, some_images, some_labels, additional_caption)
+
+    @staticmethod
+    def visualize_gradient(args, explainer, some_test_images, some_test_labels, additional_caption: str = ""):
+        rescaled_input_gradient: Tensor = explainer.rescaled_input_gradient(some_test_images, some_test_labels)
+        # ImageHandler.show_images(rescaled_input_gradient)
+
+        ImageHandler.add_image_grid_to_writer("gradient", additional_caption, args.WRITER, rescaled_input_gradient)
+
+        grad_x_input = (rescaled_input_gradient*some_test_images) * args.STD_DEV_MNIST + args.MEAN_MNIST
+        ImageHandler.add_image_grid_to_writer("gradient x input", additional_caption, args.WRITER, grad_x_input)
+
+        # grid_grad = torchvision.utils.make_grid(rescaled_input_gradient)
+        # caption = "gradient, " + additional_caption
+        # args.WRITER.add_image(caption, grid_grad)
+
+    @staticmethod
+    def visualize_input(args, some_images, additional_caption: str = ""):
+        some_images = some_images * args.STD_DEV_MNIST + args.MEAN_MNIST
+        # ImageHandler.show_images(some_images)
+        ImageHandler.add_image_grid_to_writer("some input images", additional_caption, args.WRITER, some_images)
+
+    @staticmethod
+    def add_image_grid_to_writer(image_type_caption: str, additional_caption: str, writer, some_images):
+        combined_image = torchvision.utils.make_grid(some_images)
+        caption = image_type_caption + ", " + additional_caption
+        writer.add_image(caption, combined_image)
+
+    @staticmethod
+    def get_one_batch_of_images(loader: DataLoader[Any], cfg) -> Tuple[Tensor, Tensor]:
+        images, labels = next(iter(loader))
+        images = images.to(cfg.DEVICE)[:4]
+        labels = labels.to(cfg.DEVICE)[:4]
+        return images, labels

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 import main
 from config import SimpleArgumentParser
-from experiments.experiments import train_critic_without_explanations, train_explainer_only_classification
+from experiments import train_critic_without_explanations, train_explainer_only_classification
 
 
 @pytest.fixture
@@ -43,4 +43,4 @@ def test_critic_makes_progress_without_explanations(args):
 def test_explainer_makes_progress_with_only_classification(args):
     initial_loss, end_of_training_loss = train_explainer_only_classification(args)
     assert abs(initial_loss - np.log(len(args.CLASSES))) < 0.1
-    assert initial_loss - end_of_training_loss > 0.02
+    assert initial_loss - end_of_training_loss > 0.01

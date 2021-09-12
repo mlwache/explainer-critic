@@ -2,7 +2,7 @@
 import json
 import os
 import warnings
-from typing import Iterator, Any, Tuple
+from typing import Any, Tuple
 
 import torch.utils.data
 import torchvision
@@ -10,65 +10,33 @@ import torchvision.transforms as transforms
 
 # torch related imports
 from rtpt import RTPT
-from torch import Tensor
 from torch.utils.data.dataloader import DataLoader
 from torchvision.datasets import MNIST
 
 # local imports
 from config import SimpleArgumentParser
 from explainer import Explainer
-from visualization import Visualizer as Vis
+from visualization import ImageHandler as Vis
 
 
 def main(args: SimpleArgumentParser):
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data(args)
-    some_train_images, some_train_labels = get_one_batch_of_images(train_loader, args)
-    some_test_images, some_test_labels = get_one_batch_of_images(test_loader, args)
-
-    if args.render_enabled:
-        print('Here are some training images and test images!')
-
-        Vis.show_some_sample_images(some_train_images, some_train_labels, args)
-        Vis.show_some_sample_images(some_test_images, some_test_labels, args)
-        # Todo: add to config (or to dataset?)
-        mean_mnist = 0.1307
-        std_dev_mnist = 0.3081
-        some_train_images = some_train_images * std_dev_mnist + mean_mnist
-        combined_image = torchvision.utils.make_grid(some_train_images)
-        args.WRITER.add_image("some training images", combined_image)
-
     explainer = Explainer(args)
 
     if args.render_enabled:
-        print('This is what the gradient looks like before training!')
-        input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
-        Vis.amplify_and_show(input_gradient, args)
-        amplified_gradient = Vis.amplify(input_gradient, args)
-        grid_grad = torchvision.utils.make_grid(amplified_gradient)
-        args.WRITER.add_image("gradient", grid_grad)
+        print("Before training:")
+        Vis.show_batch(args, test_loader, explainer, additional_caption="before training")
 
     print(f'Training the Explainer on {args.n_training_samples} samples...')
     explainer.train(train_loader=train_loader, critic_loader=critic_loader)
-    print('Finished Explainer Training')
 
-    print(f'Saving the model to {args.PATH_TO_MODELS}.')
-    explainer.save_model()
-    print('Model Saved.')
-
-    print('some images and their predictions:')
-    print(f'Ground truth: {some_test_labels}')
-    predicted = explainer.predict(some_test_images)
-    print(f'predicted: {predicted}')
-
-    print('Evaluating the Explainer')
     explainer_accuracy = explainer.compute_accuracy(test_loader)
     print(f'Explainer Accuracy on {args.n_test_samples} test images: {100 * explainer_accuracy} %')
 
     if args.render_enabled:
-        print('This is what the gradient looks like after training!')
-        input_gradient: Tensor = explainer.input_gradient(some_test_images, some_test_labels)
-        Vis.amplify_and_show(input_gradient, args)
+        print('After training:')
+        Vis.show_batch(args, test_loader, explainer, additional_caption="after training")
 
 
 # noinspection PyShadowingNames
@@ -120,18 +88,6 @@ def load_data(cfg) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     return train_loader, test_loader, critic_loader
 
 
-def get_one_batch_of_images(loader: DataLoader[Any], cfg) -> Tuple[Tensor, Tensor]:
-    data_iterator: Iterator[Any] = iter(loader)
-    images: Tensor
-    labels: Tensor
-    images, labels = data_iterator.next()
-    # The warning here is probably a PyCharm issue ([source](https://youtrack.jetbrains.com/issue/PY-12017))
-    # I let Pycharm ignore the unresolved reference warning here.
-    images = images.to(cfg.DEVICE)
-    labels = labels.to(cfg.DEVICE)
-    return images, labels
-
-
 def set_sharing_strategy():
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
@@ -162,3 +118,4 @@ def setup() -> SimpleArgumentParser:
 if __name__ == '__main__':
     arguments = setup()
     main(arguments)
+    print("Finished!")

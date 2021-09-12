@@ -1,5 +1,5 @@
 import os
-from typing import Union, Iterable, Callable, Optional
+from typing import Union, Iterable, Callable, Optional, Literal
 
 import torch
 import torch.optim as optim
@@ -15,6 +15,8 @@ from tap import Tap
 
 
 class SimpleArgumentParser(Tap):
+    training_mode: Literal["combined", "pretrain", "only_critic", "only_classification", "in_turns"] = "combined"
+
     # Training Details
     batch_size: int = 64
     learning_rate: float = 0.001
@@ -36,6 +38,9 @@ class SimpleArgumentParser(Tap):
     LOSS: Module = nn.CrossEntropyLoss()
     MNIST_TOTAL_SAMPLES: int = 20000
     LOG_DIR: str = f"./runs/{int(time())}"
+
+    MEAN_MNIST: float = 0.1307
+    STD_DEV_MNIST: float = 0.3081
 
     DEVICE: str = ""
     RTPT_OBJECT: RTPT = None
