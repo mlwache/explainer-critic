@@ -1,5 +1,5 @@
 import os
-from typing import Union, Iterable, Callable, Optional, Literal
+from typing import Union, Iterable, Callable, Optional
 
 import torch
 import torch.optim as optim
@@ -15,7 +15,7 @@ from tap import Tap
 
 
 class SimpleArgumentParser(Tap):
-    training_mode: Literal["combined", "pretrain", "only_critic", "only_classification", "in_turns"] = "combined"
+    training_mode: str = "combined"
 
     # Training Details
     batch_size: int = 64
