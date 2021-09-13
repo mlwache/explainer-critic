@@ -2,7 +2,7 @@
 import json
 import os
 import warnings
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 
 import torch.utils.data
 import torchvision
@@ -106,9 +106,12 @@ def write_config_to_log(arg: SimpleArgumentParser):
         f.write(json_dump)
 
 
-def setup() -> SimpleArgumentParser:
+def setup(optional_args: List) -> SimpleArgumentParser:
     args = SimpleArgumentParser()
-    args.parse_args()
+    if optional_args:
+        args.parse_args(optional_args)
+    else:
+        args.parse_args()
     set_sharing_strategy()
     write_config_to_log(args)
     start_rtpt(args.RTPT_OBJECT)
@@ -116,6 +119,6 @@ def setup() -> SimpleArgumentParser:
 
 
 if __name__ == '__main__':
-    arguments = setup()
+    arguments = setup([])
     main(arguments)
     print("Finished!")

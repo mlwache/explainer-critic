@@ -1,4 +1,4 @@
-from typing import Tuple, Any
+from typing import Tuple, Any, List
 
 from torch.utils.data import DataLoader
 
@@ -11,11 +11,9 @@ from explainer import Explainer
 Loss = float
 
 
-def run_experiments():
+def run_experiments(optional_args: List):
     print("Setting up experiments...")
-    args = SimpleArgumentParser()
-    args.parse_args()
-    train_loader, critic_loader, explainer = set_up_experiments_combined(args)
+    train_loader, critic_loader, explainer, args = set_up_experiments_combined(optional_args)
 
     ImageHandler.show_batch(args, train_loader, explainer, additional_caption="before training")
     if args.training_mode == "combined":
@@ -41,11 +39,11 @@ def run_experiments():
         print(f'Invalid training mode "{args.training_mode}"!')
 
 
-def set_up_experiments_combined(args: SimpleArgumentParser) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer]:
-    main.setup()
+def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer, SimpleArgumentParser]:
+    args = main.setup(optional_args)
     train_loader, _, critic_loader = main.load_data(args)
     explainer = Explainer(args)
-    return train_loader, critic_loader, explainer
+    return train_loader, critic_loader, explainer, args
 
 
 def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_loader: DataLoader[Any]):
@@ -74,4 +72,4 @@ def train_in_turns():
 
 
 if __name__ == '__main__':
-    run_experiments()
+    run_experiments([])
