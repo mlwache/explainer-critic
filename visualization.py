@@ -38,9 +38,9 @@ class ImageHandler:
     @staticmethod
     def re_scale_to_zero_one(images: Tensor):
         # detach in order to be able to process like an ndarray.
-        images = abs(images.detach())
-        amplified_images: np.ndarray = np.interp(images, (images.min(), images.max()), (0, 1))
-        return Tensor(amplified_images)
+        images = abs(images)
+        amplified_images: Tensor = images / images.max()
+        return amplified_images
 
 #     @staticmethod
 #     def show_computation_graph(labels, parameters):
