@@ -57,25 +57,27 @@ class Explainer(Learner):
         torch.save(self.classifier.state_dict(), self.cfg.PATH_TO_MODELS)
 
     def pre_train(self, train_loader: DataLoader[Any]) -> Tuple[Loss, Loss]:
-        return self.train(train_loader, use_critic=False)
+        return self.train(train_loader, use_critic=False, n_epochs=2)
 
     def set_writer_step_offset(self, pre_training_set_size: int, critic_set_size: int):
         self.writer_step_offset = pre_training_set_size*critic_set_size
 
     def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any] = None,
-              use_critic: bool = True) -> Tuple[Loss, Loss]:
+              use_critic: bool = True, n_epochs: int = 0) -> Tuple[Loss, Loss]:
         # check Argument validity
         assert not (use_critic and critic_loader is None)
         if not use_critic:
             critic_loader = None
-
+        if n_epochs == 0:  # if n_epochs isn't set
+            n_epochs = self.cfg.n_epochs
         loss_function_classification: Module = self.cfg.LOSS
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
         optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
         losses: List[float] = []
-        for _ in range(self.cfg.n_epochs):
+        for current_epoch in range(n_epochs):
+            print(f"[epoch {current_epoch}]")
             for n_current_batch, (inputs, labels) in enumerate(train_loader):
                 losses.append(self._process_batch(loss_function_classification, inputs, labels,
                                                   n_current_batch, optimizer, critic_loader=critic_loader))
