@@ -53,7 +53,8 @@ class Critic(Learner):
         assert n_current_batch <= self.cfg.n_critic_batches
 
     def _log_results(self, loss, n_current_batch, n_explainer_batch):
-        print(f'critic n_current_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
+        if n_current_batch == 0:  # only print the beginning for now.
+            print(f'critic n_current_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
         self.add_scalars_to_writer(loss, n_current_batch, n_explainer_batch)
 
     def add_scalars_to_writer(self, loss, n_current_batch, n_explainer_batch):

@@ -23,7 +23,8 @@ def run_experiments(optional_args: List):
     elif args.training_mode == "pretrain":
         print("See what happens when we pre-train the explainer first...")
         print(f"initial/final loss (pretraining): {explainer.pre_train(train_loader)}")
-        explainer.set_writer_step_offset(len(train_loader), len(critic_loader))
+        # explainer.set_pretraining_writer_step_offset(pre_training_set_size=len(train_loader),
+        #                                              critic_set_size=len(critic_loader))
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after pretraining")
         print(f"initial/final loss (together, after pretraining):")
         print(f"{train_together(explainer, critic_loader, train_loader)}")
@@ -39,7 +40,8 @@ def run_experiments(optional_args: List):
         print(f'Invalid training mode "{args.training_mode}"!')
 
 
-def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer, SimpleArgumentParser]:
+def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer,
+                                                              SimpleArgumentParser]:
     args = main.setup(optional_args)
     train_loader, _, critic_loader = main.load_data(args)
     explainer = Explainer(args)
