@@ -73,14 +73,18 @@ class Explainer(Learner):
               use_critic: bool = True, n_epochs: int = 0) -> Tuple[Loss, Loss]:
         # check Argument validity
         assert not (use_critic and critic_loader is None)
-        if not use_critic:
+        optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
+        if not use_critic:  # pretraining mode
             critic_loader = None
+            for g in optimizer.param_groups:  # To do: tidy this up.
+                g['lr'] = self.cfg.pretrain_learning_rate
         if n_epochs == 0:  # if n_epochs isn't set
             n_epochs = self.cfg.n_epochs
+            for g in optimizer.param_groups:
+                g['lr'] = self.cfg.learning_rate
         loss_function_classification: Module = self.cfg.LOSS
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
-        optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
 
         losses: List[float] = []
         for current_epoch in range(n_epochs):

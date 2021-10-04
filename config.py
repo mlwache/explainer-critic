@@ -20,6 +20,7 @@ class SimpleArgumentParser(Tap):
     # Training Details
     batch_size: int = 64
     learning_rate: float = 0.001
+    pretrain_learning_rate: float = 0.0005
     momentum: float = 0.9
 
     # Dataset sizes
