@@ -21,11 +21,9 @@ Loss = float
 class Explainer(Learner):
     classifier: Net
     writer_step_offset: int
-    default_n_pretraining_epochs: int
 
     def __init__(self, cfg: SimpleArgumentParser):
         super().__init__(cfg)
-        self.default_n_pretraining_epochs = 2
         self.writer_step_offset = 0
 
     def compute_accuracy(self, test_loader: DataLoader[Any]):
@@ -58,16 +56,10 @@ class Explainer(Learner):
     def save_model(self):
         torch.save(self.classifier.state_dict(), self.cfg.PATH_TO_MODELS)
 
-    def pre_train(self, train_loader: DataLoader[Any], n_epochs: int=-1) -> Tuple[Loss, Loss]:
+    def pre_train(self, train_loader: DataLoader[Any], n_epochs: int = -1) -> Tuple[Loss, Loss]:
         if n_epochs == -1:
-            n_epochs = self.default_n_pretraining_epochs
+            n_epochs = self.cfg.n_pretraining_epochs
         return self.train(train_loader, use_critic=False, n_epochs=n_epochs)
-
-    # def set_pretraining_writer_step_offset(self, pre_training_set_size: int, critic_set_size: int,
-    #                                        n_pretraining_epochs=-1):
-    #     if n_pretraining_epochs == -1:
-    #         n_pretraining_epochs = self.default_n_pretraining_epochs
-    #     self.writer_step_offset = pre_training_set_size*n_pretraining_epochs*critic_set_size
 
     def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
         # if critic_loader:

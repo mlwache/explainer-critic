@@ -22,7 +22,7 @@ def run_experiments(optional_args: List):
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after combined training")
     elif args.training_mode == "pretrain":
         print("See what happens when we pre-train the explainer first...")
-        print(f"initial/final loss (pretraining): {explainer.pre_train(train_loader)}")
+        print(f"initial/final loss (pretraining): {explainer.pre_train(train_loader, args.n_pretraining_epochs)}")
         # explainer.set_pretraining_writer_step_offset(pre_training_set_size=len(train_loader),
         #                                              critic_set_size=len(critic_loader))
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after pretraining")

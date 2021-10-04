@@ -27,6 +27,7 @@ class SimpleArgumentParser(Tap):
     n_critic_batches: int = 50
     n_test_batches: int = 5
     n_epochs: int = 1
+    n_pretraining_epochs: int = 2
 
     render_enabled: bool = False
     rtpt_enabled: bool = False
