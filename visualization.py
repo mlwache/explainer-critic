@@ -1,11 +1,12 @@
 # from typing import Any, Iterator
-from typing import Any, Tuple
+from typing import Any, Tuple, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torchvision
 from torch import Tensor
 from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import functional
 
 # from torchviz import make_dot
@@ -13,7 +14,10 @@ from torchvision.transforms import functional
 
 class ImageHandler:
 
+    device: str = ""
+    writer: Optional[SummaryWriter] = None
     # function to show an image
+
     @staticmethod
     def show_images(images: Tensor):
         # assume image is scaled to [0,1]
@@ -48,7 +52,7 @@ class ImageHandler:
 # #        make_dot(y, parameters)
     @staticmethod
     def show_batch(args, loader: DataLoader[Any], explainer, additional_caption: str = ""):
-        some_images, some_labels = ImageHandler.get_one_batch_of_images(loader, args)
+        some_images, some_labels = ImageHandler.get_one_batch_of_images(loader)
         print('Here are some images!')
         ImageHandler.visualize_input(args, some_images, additional_caption)
         print('And their gradients!')
@@ -59,10 +63,14 @@ class ImageHandler:
         rescaled_input_gradient: Tensor = explainer.rescaled_input_gradient(some_test_images, some_test_labels)
         # ImageHandler.show_images(rescaled_input_gradient)
 
-        ImageHandler.add_image_grid_to_writer("gradient", additional_caption, args.WRITER, rescaled_input_gradient)
+        if ImageHandler.writer:
+            ImageHandler.add_image_grid_to_writer("gradient", additional_caption, ImageHandler.writer,
+                                                  rescaled_input_gradient)
 
         grad_x_input = (rescaled_input_gradient*some_test_images) * args.STD_DEV_MNIST + args.MEAN_MNIST
-        ImageHandler.add_image_grid_to_writer("gradient x input", additional_caption, args.WRITER, grad_x_input)
+        if ImageHandler.writer:
+            ImageHandler.add_image_grid_to_writer("gradient x input", additional_caption, ImageHandler.writer,
+                                                  grad_x_input)
 
         # grid_grad = torchvision.utils.make_grid(rescaled_input_gradient)
         # caption = "gradient, " + additional_caption
@@ -72,7 +80,9 @@ class ImageHandler:
     def visualize_input(args, some_images, additional_caption: str = ""):
         some_images = some_images * args.STD_DEV_MNIST + args.MEAN_MNIST
         # ImageHandler.show_images(some_images)
-        ImageHandler.add_image_grid_to_writer("some input images", additional_caption, args.WRITER, some_images)
+        if ImageHandler.writer:
+            ImageHandler.add_image_grid_to_writer("some input images", additional_caption, ImageHandler.writer,
+                                                  some_images)
 
     @staticmethod
     def add_image_grid_to_writer(image_type_caption: str, additional_caption: str, writer, some_images):
@@ -81,8 +91,7 @@ class ImageHandler:
         writer.add_image(caption, combined_image)
 
     @staticmethod
-    def get_one_batch_of_images(loader: DataLoader[Any], cfg) -> Tuple[Tensor, Tensor]:
+    def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
         images, labels = next(iter(loader))
-        images = images.to(cfg.DEVICE)[:4]
-        labels = labels.to(cfg.DEVICE)[:4]
+        images, labels = images.to(ImageHandler.device)[:4], labels.to(ImageHandler.device)[:4]
         return images, labels

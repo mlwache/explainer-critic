@@ -41,12 +41,14 @@ def test_main_load_data(args):
 
 
 def test_critic_makes_progress_without_explanations(args):
-    initial_loss, end_of_training_loss = train_critic_without_explanations(args)
-    assert abs(initial_loss - np.log(len(args.CLASSES))) < 0.1
+    n_classes = 10
+    initial_loss, end_of_training_loss = train_critic_without_explanations(args, device=main.get_device())
+    assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.02
 
 
 def test_explainer_makes_progress_with_only_classification(args):
-    initial_loss, end_of_training_loss = train_explainer_only_classification(args)
-    assert abs(initial_loss - np.log(len(args.CLASSES))) < 0.1
+    n_classes = 10
+    initial_loss, end_of_training_loss = train_explainer_only_classification(args, device=main.get_device())
+    assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.01

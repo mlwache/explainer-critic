@@ -2,6 +2,7 @@
 import json
 import os
 import warnings
+from datetime import datetime
 from typing import Any, Tuple, List
 
 import torch.utils.data
@@ -9,20 +10,26 @@ import torchvision
 import torchvision.transforms as transforms
 
 # torch related imports
-from rtpt import RTPT
 from torch.utils.data.dataloader import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.datasets import MNIST
 
 # local imports
 from config import SimpleArgumentParser
 from explainer import Explainer
-from visualization import ImageHandler as Vis
+from visualization import ImageHandler as Vis, ImageHandler
 
 
-def main(args: SimpleArgumentParser):
+def main():
+
+    args, device, writer = setup([])
+
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data(args)
-    explainer = Explainer(args)
+    explainer = Explainer(args, device, writer)
+
+    if args.rtpt_enabled:
+        explainer.start_rtpt(args.n_training_batches)
 
     if args.render_enabled:
         print("Before training:")
@@ -88,37 +95,53 @@ def load_data(cfg) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     return train_loader, test_loader, critic_loader
 
 
+def get_device():
+    if not torch.cuda.is_available():
+        print(f"No GPU found, falling back to CPU.")
+        return "cpu"
+    else:
+        return "cuda"
+
+
 def set_sharing_strategy():
     # The following prevents there being too many open files at dl1.
     torch.multiprocessing.set_sharing_strategy('file_system')
 
 
-def start_rtpt(rtpt_object: RTPT):
-    # using rtpt object to name the process
-    if rtpt_object is not None:
-        rtpt_object.start()
-
-
-def write_config_to_log(arg: SimpleArgumentParser):
+def write_config_to_log(args: SimpleArgumentParser, log_dir):
     # Write config to log file
-    with open(os.path.join(arg.LOG_DIR, "config.json"), 'w') as f:
-        json_dump: str = json.dumps(arg.__dict__, default=lambda o: '<not serializable>')
+    os.makedirs(log_dir, exist_ok=True)
+    with open(os.path.join(log_dir, "config.json"), 'w') as f:
+        json_dump: str = json.dumps(args.__dict__, default=lambda o: '<not serializable>')
         f.write(json_dump)
+    # TODO: use typed_argparse's save.
 
 
-def setup(optional_args: List) -> SimpleArgumentParser:
+def config_string(cfg: SimpleArgumentParser) -> str:
+    date_time: str = str(datetime.now())[0:-7]
+
+    return f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}_lr{cfg.learning_rate_start}' \
+           f'_bs{cfg.batch_size}_ep{cfg.n_epochs}_p-ep{cfg.n_pretraining_epochs}' \
+           f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches} {date_time}'
+
+
+def setup(optional_args: List) -> Tuple[SimpleArgumentParser, str, SummaryWriter]:
     args = SimpleArgumentParser()
     if optional_args:
         args.parse_args(optional_args)
     else:
         args.parse_args()
     set_sharing_strategy()
-    write_config_to_log(args)
-    start_rtpt(args.RTPT_OBJECT)
-    return args
+
+    log_dir = f"./runs/{config_string(args)}"
+    write_config_to_log(args, log_dir)
+    writer = SummaryWriter(log_dir)
+
+    device = get_device()
+    ImageHandler.device, ImageHandler.writer = device, writer
+    return args, device, writer
 
 
 if __name__ == '__main__':
-    arguments = setup([])
-    main(arguments)
+    main()
     print("Finished!")

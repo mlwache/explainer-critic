@@ -1,24 +1,25 @@
+from torch.utils.tensorboard import SummaryWriter
 
 from config import SimpleArgumentParser
 from learner import Learner
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, Optional
 from torch.utils.data.dataloader import DataLoader
 from torch.nn.modules import Module
 from torch.optim import Optimizer
-from torch import Tensor, nn
+from torch import Tensor, nn, optim
 
 Loss = float
 
 
 class Critic(Learner):
 
-    def __init__(self, cfg: SimpleArgumentParser):
-        super().__init__(cfg)
+    def __init__(self, cfg: SimpleArgumentParser, device: str, writer: Optional[SummaryWriter] = None):
+        super().__init__(cfg, device, writer)
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
               n_explainer_batch: int) -> Tuple[float, float]:
         critic_loss: Module = self.cfg.LOSS
-        optimizer: Optimizer = self.cfg.OPTIMIZER(self.classifier.parameters())
+        optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
 
         losses: List[float] = []
         for n_current_batch, (inputs, labels) in enumerate(critic_loader):
@@ -30,8 +31,7 @@ class Critic(Learner):
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, n_explainer_batch: int, optimizer) -> Loss:
-        inputs = inputs.to(self.cfg.DEVICE)
-        labels = labels.to(self.cfg.DEVICE)
+        inputs, labels = inputs.to(self.device), labels.to(self.device)
         # zero the parameter gradients # TODO: think about whether zero_grad should be done here.
         optimizer.zero_grad()
         # forward + backward + optimize
@@ -59,5 +59,5 @@ class Critic(Learner):
 
     def add_scalars_to_writer(self, loss, n_current_batch, n_explainer_batch):
         global_step = self.cfg.n_critic_batches * n_explainer_batch + n_current_batch
-        if hasattr(self.cfg, "WRITER"):
-            self.cfg.WRITER.add_scalar("Critic_Training/Critic_Loss", loss.item(), global_step=global_step)
+        if self.writer:
+            self.writer.add_scalar("Critic_Training/Critic_Loss", loss.item(), global_step=global_step)
