@@ -18,7 +18,7 @@ class Critic(Learner):
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
               n_explainer_batch: int) -> Tuple[float, float]:
-        critic_loss: Module = self.cfg.LOSS
+        critic_loss: Module = nn.CrossEntropyLoss()
         optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
 
         losses: List[float] = []

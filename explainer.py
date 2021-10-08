@@ -87,7 +87,7 @@ class Explainer(Learner):
             n_epochs = self.cfg.n_epochs
             for g in optimizer.param_groups:
                 g['lr'] = self.cfg.learning_rate_start
-        loss_function_classification: Module = self.cfg.LOSS
+        loss_function_classification: Module = nn.CrossEntropyLoss()
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
 

@@ -7,6 +7,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader
 
 import main
+import utils
 from config import SimpleArgumentParser
 from experiments import train_critic_without_explanations, train_explainer_only_classification, run_experiments
 
@@ -28,7 +29,7 @@ def test_main_load_data(args):
     train_loader: DataLoader[Any]
     test_loader: DataLoader[Any]
     critic_loader: DataLoader[Any]
-    train_loader, test_loader, critic_loader = main.load_data(args)
+    train_loader, test_loader, critic_loader = utils.load_data(args)
     train_data_sample: Tensor
     for i, train_data_sample in enumerate(train_loader):
         assert i <= args.n_training_batches
@@ -42,13 +43,13 @@ def test_main_load_data(args):
 
 def test_critic_makes_progress_without_explanations(args):
     n_classes = 10
-    initial_loss, end_of_training_loss = train_critic_without_explanations(args, device=main.get_device())
+    initial_loss, end_of_training_loss = train_critic_without_explanations(args, device=utils.get_device())
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.02
 
 
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
-    initial_loss, end_of_training_loss = train_explainer_only_classification(args, device=main.get_device())
+    initial_loss, end_of_training_loss = train_explainer_only_classification(args, device=utils.get_device())
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.01

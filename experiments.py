@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import main
+import utils
 from visualization import ImageHandler
 from config import SimpleArgumentParser
 from critic import Critic
@@ -43,7 +44,7 @@ def run_experiments(optional_args: List):
 def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer,
                                                               SimpleArgumentParser, str, SummaryWriter]:
     args, device, writer = main.setup(optional_args)
-    train_loader, _, critic_loader = main.load_data(args)
+    train_loader, _, critic_loader = utils.load_data(args)
     explainer = Explainer(args, device, writer)
     return train_loader, critic_loader, explainer, args, device, writer
 
@@ -54,7 +55,7 @@ def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_l
 
 def train_critic_without_explanations(args: SimpleArgumentParser, device: str) -> Tuple[Loss, Loss]:
     args.n_critic_batches = 100
-    *_, critic_loader = main.load_data(args)
+    *_, critic_loader = utils.load_data(args)
     critic = Critic(args, device)
     initial_loss, end_of_training_loss = critic.train(critic_loader, explanations=[], n_explainer_batch=0)
     return initial_loss, end_of_training_loss
@@ -64,7 +65,7 @@ def train_explainer_only_classification(args: SimpleArgumentParser,
                                         device: str) -> Tuple[Loss, Loss]:
     args.n_training_batches = 100
     args.n_critic_batches = 0
-    train_loader, *_ = main.load_data(args)
+    train_loader, *_ = utils.load_data(args)
     explainer = Explainer(args, device)
     initial_loss, end_of_training_loss = explainer.train(train_loader, use_critic=False)
     return initial_loss, end_of_training_loss

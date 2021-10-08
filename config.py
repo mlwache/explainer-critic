@@ -1,6 +1,4 @@
-import torch.nn as nn
 from tap import Tap
-from torch.nn.modules import Module
 
 
 class SimpleArgumentParser(Tap):
@@ -24,7 +22,6 @@ class SimpleArgumentParser(Tap):
 
     # config values that are rarely changed
     CLASSES: list = list(range(10))
-    LOSS: Module = nn.CrossEntropyLoss()
     MNIST_TOTAL_SAMPLES: int = 20000
 
     MEAN_MNIST: float = 0.1307
