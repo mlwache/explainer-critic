@@ -15,42 +15,52 @@ Loss = float
 
 def run_experiments(optional_args: List):
     print("Setting up experiments...")
-    train_loader, critic_loader, explainer, args, device, writer = set_up_experiments_combined(optional_args)
+    train_loader, critic_loader, test_loader, explainer, args, device, writer \
+        = set_up_experiments_combined(optional_args)
     ImageHandler.show_batch(args, train_loader, explainer, additional_caption="before training")
+
     if args.training_mode == "combined":
         print("Training together with simple combined loss...")
-        print(f"initial/final loss:{train_together(explainer, critic_loader, train_loader)}")
+        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        print(f"initial/final loss:{init_l:.3f}, {fin_l:3f}")
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after combined training")
+
     elif args.training_mode == "pretrain":
         print("See what happens when we pre-train the explainer first...")
-        print(f"initial/final loss (pretraining): {explainer.pre_train(train_loader, args.n_pretraining_epochs)}")
+        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader, args.n_pretraining_epochs,
+                                                log_interval=args.log_interval_pretraining)
+        print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
         # explainer.set_pretraining_writer_step_offset(pre_training_set_size=len(train_loader),
         #                                              critic_set_size=len(critic_loader))
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after pretraining")
-        print(f"initial/final loss (together, after pretraining):")
-        print(f"{train_together(explainer, critic_loader, train_loader)}")
+        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after combined training")
+
     elif args.training_mode == "only_critic":
         print(f"initial/final loss (only critic): {train_critic_without_explanations(args, device)}")
+
     elif args.training_mode == "only_classification":
         print(f"initial/final loss (only classification): {train_explainer_only_classification(args, device)}")
         ImageHandler.show_batch(args, train_loader, explainer, additional_caption="after only-classification training")
+
     elif args.training_mode == "in_turns":
         train_in_turns()
     else:
-        print(f'Invalid training mode "{args.training_mode}"!')
+        raise ValueError(f'Invalid training mode "{args.training_mode}"!')
 
 
-def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], Explainer,
-                                                              SimpleArgumentParser, str, SummaryWriter]:
-    args, device, writer = main.setup(optional_args)
-    train_loader, _, critic_loader = utils.load_data(args)
+def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any],
+                                                              Explainer, SimpleArgumentParser, str, SummaryWriter]:
+    args, device, writer = main.setup(optional_args, "experiments")
+    train_loader, test_loader, critic_loader = utils.load_data(args)
     explainer = Explainer(args, device, writer)
-    return train_loader, critic_loader, explainer, args, device, writer
+    return train_loader, critic_loader, test_loader, explainer, args, device, writer
 
 
-def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_loader: DataLoader[Any]):
-    explainer.train(train_loader, critic_loader)
+def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_loader: DataLoader[Any],
+                   test_loader: DataLoader[Any], log_interval: int) -> Tuple[Loss, Loss]:
+    return explainer.train(train_loader, critic_loader, test_loader, log_interval)
 
 
 def train_critic_without_explanations(args: SimpleArgumentParser, device: str) -> Tuple[Loss, Loss]:
@@ -65,9 +75,10 @@ def train_explainer_only_classification(args: SimpleArgumentParser,
                                         device: str) -> Tuple[Loss, Loss]:
     args.n_training_batches = 100
     args.n_critic_batches = 0
-    train_loader, *_ = utils.load_data(args)
+    train_loader, test_loader, _ = utils.load_data(args)  # TODO get theses as parameters instead.
     explainer = Explainer(args, device)
-    initial_loss, end_of_training_loss = explainer.train(train_loader, use_critic=False)
+    initial_loss, end_of_training_loss = explainer.train(train_loader, log_interval=args.log_interval_pretraining,
+                                                         critic_loader=None, test_loader=test_loader)
     return initial_loss, end_of_training_loss
 
 

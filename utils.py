@@ -31,13 +31,15 @@ def load_data(cfg) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     # transformation that first makes data to a tensor, and then normalizes them.
     # I took the mean and stddev from here:
     # https://nextjournal.com/gkoehler/pytorch-mnist (taking them as given for now)
-    # maybe TODO: compute them myself, that seems more robust than taking magic numbers from the internet.
+    # maybe to do: compute them myself, that seems more robust than taking magic numbers from the internet.
 
     with warnings.catch_warnings():  # Ignore warning, as it's caused by the underlying functional,
         # and I think would require me to change the site-packages in order to fix it.
         warnings.simplefilter("ignore")
         training_and_critic_set: MNIST = torchvision.datasets.MNIST('./data', train=True, download=True,
                                                                     transform=transform_mnist)
+        max_train_samples = training_and_critic_set.data.size()[0]
+        assert_not_too_many_samples(cfg, max_train_samples)
         # loads the data to .data folder
         # ignores the UserWarning: The given NumPy array is not writeable,
         # and PyTorch does not support non-writeable tensors.
@@ -64,9 +66,18 @@ def load_data(cfg) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
     return train_loader, test_loader, critic_loader
 
 
+def assert_not_too_many_samples(cfg: SimpleArgumentParser, max_training_samples: int):
+    n_total_training_samples = cfg.n_training_samples + cfg.n_critic_samples
+    assert n_total_training_samples <= max_training_samples, f"{n_total_training_samples} are too much."
+
+
+def colored(r, g, b, text):
+    return f"\033[38;2;{r};{g};{b}m{text} \033[0m"
+
+
 def get_device():
     if not torch.cuda.is_available():
-        print(f"No GPU found, falling back to CPU.")
+        print(colored(200, 150, 0, f"No GPU found, falling back to CPU."))
         return "cpu"
     else:
         return "cuda"
@@ -86,9 +97,10 @@ def write_config_to_log(args: SimpleArgumentParser, log_dir):
     # TODO: use typed_argparse's save.
 
 
-def config_string(cfg: SimpleArgumentParser) -> str:
+def config_string(cfg: SimpleArgumentParser, additional_string: str = "") -> str:
     date_time: str = str(datetime.now())[0:-7]
 
-    return f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}_lr{cfg.learning_rate_start}' \
+    return f'{additional_string}_{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
+           f'_lr{cfg.learning_rate_start}' \
            f'_bs{cfg.batch_size}_ep{cfg.n_epochs}_p-ep{cfg.n_pretraining_epochs}' \
            f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches} {date_time}'

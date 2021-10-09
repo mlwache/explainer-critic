@@ -18,6 +18,9 @@ class Critic(Learner):
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
               n_explainer_batch: int) -> Tuple[float, float]:
+
+        self.classifier.train()
+
         critic_loss: Module = nn.CrossEntropyLoss()
         optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
 
@@ -27,13 +30,14 @@ class Critic(Learner):
                                               inputs, labels, n_current_batch,
                                               n_explainer_batch, optimizer))
 
-        return losses[0], super().smooth_end_losses(losses)
+        return losses[0], self._smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, n_explainer_batch: int, optimizer) -> Loss:
         inputs, labels = inputs.to(self.device), labels.to(self.device)
-        # zero the parameter gradients # TODO: think about whether zero_grad should be done here.
+
         optimizer.zero_grad()
+
         # forward + backward + optimize
         if explanations:
             input_explanation_product: Tensor = inputs * explanations[n_current_batch]
@@ -43,19 +47,16 @@ class Critic(Learner):
         loss = loss_function(outputs, labels)
         loss.backward()  # or retain_graph=True ? TODO: clarify computation graph
         optimizer.step()
-        self._sanity_check(input_explanation_product, inputs, n_current_batch)
         self._log_results(loss, n_current_batch, n_explainer_batch)
         return loss.item()
 
-    def _sanity_check(self, inputs, input_explanation_product, n_current_batch):
-        # sanity checks
-        assert inputs.size() == input_explanation_product.size()  # element-wise product should not change the size.
-        assert n_current_batch <= self.cfg.n_critic_batches
-
     def _log_results(self, loss, n_current_batch, n_explainer_batch):
-        if n_current_batch == 0:  # only print the beginning for now.
-            print(f'critic n_current_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
-        self.add_scalars_to_writer(loss, n_current_batch, n_explainer_batch)
+        if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches-1:
+            # only print the beginning and end for now.
+            print(f'[exp_batch {n_explainer_batch}] crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
+        if n_current_batch % self.cfg.log_interval_critic == 0 \
+                and n_explainer_batch % self.cfg.log_interval == 0:
+            self.add_scalars_to_writer(loss, n_current_batch, n_explainer_batch)
 
     def add_scalars_to_writer(self, loss, n_current_batch, n_explainer_batch):
         global_step = self.cfg.n_critic_batches * n_explainer_batch + n_current_batch

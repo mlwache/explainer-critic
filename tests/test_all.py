@@ -6,7 +6,6 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-import main
 import utils
 from config import SimpleArgumentParser
 from experiments import train_critic_without_explanations, train_explainer_only_classification, run_experiments
@@ -20,9 +19,10 @@ def args() -> SimpleArgumentParser:
 
 
 def test_experiments_dont_crash():
-    for training_mode in ["pretrain", "combined", "only_critic", "only_classification", "in_turns"]:
-        run_experiments(['--batch_size=4', '--n_training_batches=2', '--n_critic_batches=2',
-                         '--n_epochs=3', f'--training_mode={training_mode}'])
+    for training_mode in ["pretrain", "combined", "only_critic", "only_classification"]:  # Todo: "in_turns"
+        run_experiments(['--batch_size=4', '--n_training_batches=2', '--n_critic_batches=2', '--n_test_batches=1',
+                         '--n_epochs=3', '--logging_enabled=False', '--n_pretraining_epochs=1',
+                         f'--training_mode={training_mode}'])
 
 
 def test_main_load_data(args):

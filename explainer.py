@@ -6,6 +6,7 @@ from rtpt import RTPT
 from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import StepLR
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
@@ -32,39 +33,15 @@ class Explainer(Learner):
                          max_iterations=n_training_batches)
         self.rtpt.start()
 
-    def compute_accuracy(self, test_loader: DataLoader[Any]):
-        n_correct_samples: int = 0
-        n_test_samples_total: int = 0
-
-        # since we're not training, we don't need to calculate the gradients for our outputs
-        with torch.no_grad():
-            for i, data in enumerate(test_loader):
-                assert i <= self.cfg.n_test_samples
-                labels: Tensor
-                images, labels = data
-                images, labels = images.to(self.device), labels.to(self.device)
-
-                # calculate outputs by running images through the network
-                outputs = self.classifier(images)
-                assert outputs.device.type == self.device
-
-                # the class with the highest output is what we choose as prediction
-                predicted: Tensor
-                _, predicted = torch.max(outputs.data, dim=1)
-                n_test_samples_total += labels.size()[0]
-                n_correct_samples += (predicted == labels).sum().item()
-                assert predicted.device.type == self.device
-        total_accuracy = n_correct_samples / n_test_samples_total
-        assert n_test_samples_total == self.cfg.n_test_samples
-        return total_accuracy
-
     def save_model(self):
         torch.save(self.classifier.state_dict(), './models/mnist_net.pth')
 
-    def pre_train(self, train_loader: DataLoader[Any], n_epochs: int = -1) -> Tuple[Loss, Loss]:
+    def pre_train(self, train_loader: DataLoader[Any], test_loader: DataLoader[Any],
+                  n_epochs: int = -1, log_interval: int = 1) -> Tuple[Loss, Loss]:
         if n_epochs == -1:
             n_epochs = self.cfg.n_pretraining_epochs
-        return self.train(train_loader, use_critic=False, n_epochs=n_epochs)
+        return self.train(train_loader, critic_loader=None, n_epochs=n_epochs, test_loader=test_loader,
+                          log_interval=log_interval)
 
     def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
         # if critic_loader:
@@ -74,40 +51,45 @@ class Explainer(Learner):
         training_set_size = len(train_loader)
         self.writer_step_offset += training_set_size * self.cfg.n_critic_batches
 
-    def train(self, train_loader: DataLoader[Any], critic_loader: DataLoader[Any] = None,
-              use_critic: bool = True, n_epochs: int = 0) -> Tuple[Loss, Loss]:
-        # check Argument validity
-        assert not (use_critic and critic_loader is None)
-        optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
-        if not use_critic:  # pretraining mode
-            critic_loader = None
-            for g in optimizer.param_groups:  # To do: tidy this up.
-                g['lr'] = self.cfg.pretrain_learning_rate
-        if n_epochs == 0:  # if n_epochs isn't set
+    def train(self, train_loader: DataLoader[Any], critic_loader: Optional[DataLoader[Any]],
+              test_loader: Optional[DataLoader[Any]], log_interval: int, n_epochs: int = -1) -> Tuple[Loss, Loss]:
+        self.classifier.train()
+
+        if n_epochs == -1:  # if n_epochs isn't explicitly set, use the default.
             n_epochs = self.cfg.n_epochs
-            for g in optimizer.param_groups:
-                g['lr'] = self.cfg.learning_rate_start
+
+        if critic_loader:  # parallel training mode
+            optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
+        else:  # pretraining mode
+            optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.pretrain_learning_rate)
+
         loss_function_classification: Module = nn.CrossEntropyLoss()
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
 
-        losses: List[float] = []
-        # scheduler = StepLR(optimizer, step_size=1, gamma=self.cfg.learning_rate_step)
+        losses: List[Loss] = []
+        scheduler = StepLR(optimizer, step_size=1, gamma=self.cfg.learning_rate_step)
         for current_epoch in range(n_epochs):
             print(f"[epoch {current_epoch}]")
             for n_current_batch, (inputs, labels) in enumerate(train_loader):
-                losses.append(self._process_batch(loss_function_classification, inputs, labels,
-                                                  n_current_batch, optimizer, critic_loader=critic_loader))
+                loss, classification_loss = self._process_batch(loss_function_classification, inputs, labels,
+                                                                n_current_batch, optimizer, critic_loader=critic_loader)
+                losses.append(loss)
+                if n_current_batch % log_interval == 0:
+                    self.log_values(losses[-1], classification_loss, n_current_batch,
+                                    learning_rate=optimizer.param_groups[0]['lr'])
+                if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
+                    self.log_accuracy(train_loader, test_loader, n_current_batch)
             self.update_epoch_writer_step_offset(train_loader)
-            # scheduler.step()
+            scheduler.step()
         self.terminate_writer()
 
-        return losses[0], super().smooth_end_losses(losses)
+        return losses[0], super()._smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
                        n_current_batch: int, optimizer: Optimizer,
-                       # n_explainer_batch: int = 0, explanations: List[Tensor] = None,
-                       critic_loader: DataLoader[Any] = None) -> Loss:
+                       critic_loader: DataLoader[Any] = None) -> Tuple[Loss, Loss]:
+
         inputs, labels = inputs.to(self.device), labels.to(self.device)
 
         optimizer.zero_grad()
@@ -117,17 +99,14 @@ class Explainer(Learner):
         loss = self._add_explanation_loss(critic_loader, loss_classification, n_current_batch)
         loss.backward()
         optimizer.step()
-        self._sanity_check_batch_device(n_current_batch, outputs)
-        self._record_losses(loss, loss_classification, n_current_batch)
-        return loss.item()
 
-    def _sanity_check_batch_device(self, n_current_batch, outputs):
-        assert n_current_batch < self.cfg.n_training_batches
-        assert outputs.device.type == self.device
+        return loss.item(), loss_classification.item()
 
-    def _record_losses(self, loss, loss_classification, n_current_batch):
-        self.add_scalars_to_writer(loss, loss_classification, loss - loss_classification, n_current_batch)
-        self.print_statistics(loss, loss_classification, loss - loss_classification, n_current_batch)
+    def log_values(self, loss, loss_classification, n_current_batch, learning_rate):
+
+        self.add_scalars_to_writer(loss, loss_classification, n_current_batch,
+                                   learning_rate)
+        self.print_statistics(loss, loss_classification, n_current_batch)
 
     def _add_explanation_loss(self, critic_loader, loss_classification, n_current_batch):
         if critic_loader:
@@ -142,26 +121,28 @@ class Explainer(Learner):
             self.writer.flush()
             self.writer.close()
 
-    def print_statistics(self, loss, loss_classification, loss_explanation, n_current_batch):
+    def print_statistics(self, loss, loss_classification, n_current_batch):
         # print statistics
         print(f'explainer [batch  {n_current_batch}] \n'
               f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
-              f' + {loss_explanation:.3f}(explanation)')
+              f' + {loss - loss_classification:.3f}(explanation)')
         if self.cfg.rtpt_enabled:
             self.rtpt.step(subtitle=f"loss={loss:2.2f}")
 
-    def add_scalars_to_writer(self, loss, loss_classification, loss_explanation, n_current_batch):
-
+    def global_step(self, n_current_batch: int) -> int:
         relative_step = n_current_batch * self.cfg.n_critic_batches if \
             self.cfg.n_critic_batches != 0 else n_current_batch
-        global_step = self.writer_step_offset + relative_step
+        return self.writer_step_offset + relative_step
 
+    def add_scalars_to_writer(self, loss, loss_classification, n_current_batch, learning_rate):
+        global_step = self.global_step(n_current_batch)
         if self.writer:
-            self.writer.add_scalar("Explainer_Training/Explanation", loss_explanation,
+            self.writer.add_scalar("Explainer_Training/Explanation", loss - loss_classification,
                                    global_step=global_step)
             self.writer.add_scalar("Explainer_Training/Classification", loss_classification,
                                    global_step=global_step)
             self.writer.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
+            self.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
     def explanation_loss(self, critic_loader: DataLoader, n_current_batch: int) -> float:
         critic = Critic(self.cfg, self.device, self.writer)
