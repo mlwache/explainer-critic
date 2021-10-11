@@ -65,10 +65,10 @@ class ImageHandler:
         test_images, test_labels = test_batch
         rescaled_input_gradient: Tensor = explainer.rescaled_input_gradient(test_images, test_labels)
 
-        ImageHandler.add_image_grid_to_writer(f"gradient, {additional_caption}", rescaled_input_gradient)
+        ImageHandler.add_image_grid_to_writer(f"gradient/{additional_caption}", rescaled_input_gradient)
 
         grad_x_input = ImageHandler.rescale_to_zero_one(rescaled_input_gradient*test_images)
-        ImageHandler.add_image_grid_to_writer(f"gradient x input, {additional_caption}", grad_x_input)
+        ImageHandler.add_image_grid_to_writer(f"gradient x input/{additional_caption}", grad_x_input)
 
     @staticmethod
     def add_image_grid_to_writer(caption: str, some_images: Tensor):

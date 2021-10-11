@@ -21,14 +21,14 @@ def run_experiments(optional_args: List):
     test_batch_to_visualize = utils.get_one_batch_of_images(device, test_loader)
     explainer = Explainer(args, device, test_batch_to_visualize, writer)
     ImageHandler.add_input_images(test_batch_to_visualize[0])
-    ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="before training")
+    ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
 
     if args.training_mode == "combined":
         print("Training together with simple combined loss...")
         init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
         print(f"initial/final loss:{init_l:.3f}, {fin_l:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
-                                         additional_caption="after combined training")
+                                         additional_caption="3: after combined training")
 
     elif args.training_mode == "pretrain":
         print("Pre-train the explainer first...")
@@ -37,11 +37,11 @@ def run_experiments(optional_args: List):
         print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
         # explainer.set_pretraining_writer_step_offset(pre_training_set_size=len(train_loader),
         #                                              critic_set_size=len(critic_loader))
-        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="after pretraining")
+        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
         print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
-                                         additional_caption="after combined training")
+                                         additional_caption="3: after combined training")
 
     elif args.training_mode == "only_critic":
         print(utils.colored(200, 0, 0, "Only training critic, progress output may still be buggy."))
