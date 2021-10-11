@@ -8,6 +8,8 @@ from torch.nn.modules import Module
 from torch.optim import Optimizer
 from torch import Tensor, nn, optim
 
+from utils import colored
+
 Loss = float
 
 
@@ -17,7 +19,7 @@ class Critic(Learner):
         super().__init__(cfg, device, writer)
 
     def train(self, critic_loader: DataLoader[Any], explanations: List[Tensor],
-              n_explainer_batch: int) -> Tuple[float, float]:
+              n_explainer_batch_total: int) -> Tuple[float, float]:
 
         self.classifier.train()
 
@@ -28,12 +30,12 @@ class Critic(Learner):
         for n_current_batch, (inputs, labels) in enumerate(critic_loader):
             losses.append(self._process_batch(critic_loss, explanations,
                                               inputs, labels, n_current_batch,
-                                              n_explainer_batch, optimizer))
+                                              n_explainer_batch_total, optimizer))
 
         return losses[0], self._smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
-                       n_current_batch: int, n_explainer_batch: int, optimizer) -> Loss:
+                       n_current_batch: int, n_explainer_batch_total: int, optimizer) -> Loss:
         inputs, labels = inputs.to(self.device), labels.to(self.device)
 
         optimizer.zero_grad()
@@ -47,16 +49,20 @@ class Critic(Learner):
         loss = loss_function(outputs, labels)
         loss.backward()  # or retain_graph=True ? TODO: clarify computation graph
         optimizer.step()
-        self._log_results(loss, n_current_batch, n_explainer_batch)
+        self._log_results(loss, n_current_batch, n_explainer_batch_total)
         return loss.item()
 
-    def _log_results(self, loss, n_current_batch, n_explainer_batch):
-        if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches-1:
+    def _log_results(self, loss, n_current_batch, n_explainer_batch_total):
+        if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches - 1:
             # only print the beginning and end for now.
-            print(f'[exp_batch {n_explainer_batch}] crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
-        if n_current_batch % self.cfg.log_interval_critic == 0 \
-                and n_explainer_batch % self.cfg.log_interval == 0:
-            self.add_scalars_to_writer(loss, n_current_batch, n_explainer_batch)
+            progress_percentage = 100 * (n_explainer_batch_total + 1) / self.cfg.combined_iterations
+            print(f'[iteration {n_explainer_batch_total} of {self.cfg.n_iterations} '
+                  f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
+            print(f'crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
+        if not self.cfg.logging_disabled \
+                and n_current_batch % self.cfg.log_interval_critic == 0 \
+                and n_explainer_batch_total % self.cfg.log_interval == 0:
+            self.add_scalars_to_writer(loss, n_current_batch, n_explainer_batch_total)
 
     def add_scalars_to_writer(self, loss, n_current_batch, n_explainer_batch):
         global_step = self.cfg.n_critic_batches * n_explainer_batch + n_current_batch

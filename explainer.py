@@ -75,11 +75,13 @@ class Explainer(Learner):
                 loss, classification_loss = self._process_batch(loss_function_classification, inputs, labels,
                                                                 n_current_batch, optimizer, critic_loader=critic_loader)
                 losses.append(loss)
-                if n_current_batch % log_interval == 0:
-                    self.log_values(losses[-1], classification_loss, n_current_batch,
-                                    learning_rate=optimizer.param_groups[0]['lr'])
-                if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
-                    self.log_accuracy(train_loader, test_loader, n_current_batch)
+
+                if not self.cfg.logging_disabled:
+                    if n_current_batch % log_interval == 0:
+                        self.log_values(losses[-1], classification_loss, n_current_batch,
+                                        learning_rate=optimizer.param_groups[0]['lr'])
+                    if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
+                        self.log_accuracy(train_loader, test_loader, n_current_batch)
             self.update_epoch_writer_step_offset(train_loader)
             scheduler.step()
         self.terminate_writer()
@@ -172,7 +174,7 @@ class Explainer(Learner):
 
     def rescaled_input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
         gradient = self.input_gradient(input_images, labels)
-        return ImageHandler.re_scale_to_zero_one(gradient)
+        return ImageHandler.rescale_to_zero_one(gradient)
 
     def predict(self, images: Tensor) -> Tensor:
         outputs = self.classifier(images)

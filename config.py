@@ -7,7 +7,7 @@ def _colored(r, g, b, text):
 
 class SimpleArgumentParser(Tap):
     training_mode: str = "pretrain"
-    logging_enabled: bool = True
+    logging_disabled: bool = False
 
     # Training Details
     batch_size: int = 128
@@ -46,7 +46,7 @@ class SimpleArgumentParser(Tap):
     def process_args(self):
         low_number_of_iterations = 50
         n_iterations = self.n_iterations
-        if self.logging_enabled and n_iterations < low_number_of_iterations:
+        if not self.logging_disabled and n_iterations < low_number_of_iterations:
             # if we have so few iterations then it's probably a debug run.
             print(_colored(200, 150, 0, f"Logging everything, as there are only {n_iterations} iterations"))
             self.log_interval = 1
@@ -58,16 +58,19 @@ class SimpleArgumentParser(Tap):
             self.pretrain_learning_rate = 0.2
 
     @property
+    def combined_iterations(self) -> int:
+        return self.n_epochs * self.n_training_batches * self.n_critic_batches
+
+    @property
     def n_iterations(self) -> int:
-        combined_iterations = self.n_epochs * self.n_training_batches * self.n_critic_batches
         if self.training_mode == 'combined':
-            return combined_iterations
+            return self.combined_iterations
         elif self.training_mode == 'pretrain':
-            return self.n_pretraining_epochs * self.n_training_batches + combined_iterations
+            return self.n_pretraining_epochs * self.n_training_batches + self.combined_iterations
         elif self.training_mode == 'only_critic':
             return self.n_critic_batches  # critic only trains one episode
         elif self.training_mode == 'only_classification':
-            return self.n_training_batches
+            return self.n_training_batches*self.n_pretraining_epochs
         elif self.training_mode == 'in_turns':
             raise NotImplementedError
         else:

@@ -14,14 +14,14 @@ from experiments import train_critic_without_explanations, train_explainer_only_
 @pytest.fixture
 def args() -> SimpleArgumentParser:
     args = SimpleArgumentParser()
-    args.parse_args(args=[])
+    args.parse_args(args=['--logging_disabled', '--batch_size=32', '--n_epochs=1'])
     return args
 
 
 def test_experiments_dont_crash():
     for training_mode in ["pretrain", "combined", "only_critic", "only_classification"]:  # Todo: "in_turns"
         run_experiments(['--batch_size=4', '--n_training_batches=2', '--n_critic_batches=2', '--n_test_batches=1',
-                         '--n_epochs=3', '--logging_enabled=False', '--n_pretraining_epochs=1',
+                         '--n_epochs=2', '--logging_disabled', '--n_pretraining_epochs=1',
                          f'--training_mode={training_mode}'])
 
 
@@ -29,7 +29,7 @@ def test_main_load_data(args):
     train_loader: DataLoader[Any]
     test_loader: DataLoader[Any]
     critic_loader: DataLoader[Any]
-    train_loader, test_loader, critic_loader = utils.load_data(args)
+    train_loader, test_loader, critic_loader = utils.load_data_from_args(args)
     train_data_sample: Tensor
     for i, train_data_sample in enumerate(train_loader):
         assert i <= args.n_training_batches
@@ -41,8 +41,9 @@ def test_main_load_data(args):
         assert torch.all(images[0].data.le(5*torch.ones_like(images)))
 
 
-def test_critic_makes_progress_without_explanations(args):
+def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
     n_classes = 10
+    args.n_critic_batches = 50
     initial_loss, end_of_training_loss = train_critic_without_explanations(args, device=utils.get_device())
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.02
@@ -50,6 +51,10 @@ def test_critic_makes_progress_without_explanations(args):
 
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
-    initial_loss, end_of_training_loss = train_explainer_only_classification(args, device=utils.get_device())
+    args.n_training_batches = 50
+
+    train_loader, test_loader, _ = utils.load_data_from_args(args)
+    initial_loss, end_of_training_loss = train_explainer_only_classification(args, utils.get_device(),
+                                                                             train_loader, test_loader)
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.01
