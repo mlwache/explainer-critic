@@ -14,6 +14,7 @@ from config import SimpleArgumentParser
 from critic import Critic
 from learner import Learner
 from net import Net
+from utils import colored
 from visualization import ImageHandler
 
 Loss = float
@@ -21,11 +22,14 @@ Loss = float
 
 class Explainer(Learner):
     classifier: Net
+    test_batch_for_visualization: Tuple[Tensor, Tensor]
 
-    def __init__(self, cfg: SimpleArgumentParser, device: str, writer: SummaryWriter = None):
+    def __init__(self, cfg: SimpleArgumentParser, device: str,
+                 test_batch_for_visualization: Tuple[Tensor, Tensor] = None, writer: SummaryWriter = None):
         super().__init__(cfg, device, writer)
         self.rtpt: Optional[RTPT] = None
         self.writer_step_offset: int = 0
+        self.test_batch_for_visualization = test_batch_for_visualization
 
     def start_rtpt(self, n_training_batches):
         self.rtpt = RTPT(name_initials='mwache',
@@ -44,10 +48,6 @@ class Explainer(Learner):
                           log_interval=log_interval)
 
     def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
-        # if critic_loader:
-        #     critic_set_size = len(critic_loader)
-        # else:
-        #     critic_set_size = 1
         training_set_size = len(train_loader)
         self.writer_step_offset += training_set_size * self.cfg.n_critic_batches
 
@@ -82,6 +82,12 @@ class Explainer(Learner):
                                         learning_rate=optimizer.param_groups[0]['lr'])
                     if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
                         self.log_accuracy(train_loader, test_loader, n_current_batch)
+                        ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "during training")
+
+                    if not critic_loader:  # in pretraining mode
+                        progress_percentage: float = 100 * n_current_batch / self.cfg.pretraining_iterations
+                        print(f'[pretraining iteration {n_current_batch} of {self.cfg.pretraining_iterations} '
+                              f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
             self.update_epoch_writer_step_offset(train_loader)
             scheduler.step()
         self.terminate_writer()

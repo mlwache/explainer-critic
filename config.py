@@ -62,15 +62,19 @@ class SimpleArgumentParser(Tap):
         return self.n_epochs * self.n_training_batches * self.n_critic_batches
 
     @property
+    def pretraining_iterations(self) -> int:
+        return self.n_pretraining_epochs * self.n_training_batches
+
+    @property
     def n_iterations(self) -> int:
         if self.training_mode == 'combined':
             return self.combined_iterations
         elif self.training_mode == 'pretrain':
-            return self.n_pretraining_epochs * self.n_training_batches + self.combined_iterations
+            return self.pretraining_iterations + self.combined_iterations
         elif self.training_mode == 'only_critic':
             return self.n_critic_batches  # critic only trains one episode
         elif self.training_mode == 'only_classification':
-            return self.n_training_batches*self.n_pretraining_epochs
+            return self.pretraining_iterations
         elif self.training_mode == 'in_turns':
             raise NotImplementedError
         else:
