@@ -41,9 +41,11 @@ class Explainer(Learner):
         torch.save(self.classifier.state_dict(), './models/mnist_net.pth')
 
     def pre_train(self, train_loader: DataLoader[Any], test_loader: DataLoader[Any],
-                  n_epochs: int = -1, log_interval: int = 1) -> Tuple[Loss, Loss]:
+                  n_epochs: int = -1, log_interval: int = -1) -> Tuple[Loss, Loss]:
         if n_epochs == -1:
             n_epochs = self.cfg.n_pretraining_epochs
+        if log_interval == -1:
+            log_interval = self.cfg.log_interval
         return self.train(train_loader, critic_loader=None, n_epochs=n_epochs, test_loader=test_loader,
                           log_interval=log_interval)
 
@@ -85,8 +87,9 @@ class Explainer(Learner):
                         ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training")
 
                     if not critic_loader:  # in pretraining mode
-                        progress_percentage: float = 100 * n_current_batch / self.cfg.pretraining_iterations
-                        print(f'[pretraining iteration {n_current_batch} of {self.cfg.pretraining_iterations} '
+                        n_total_batch = current_epoch * self.cfg.n_training_batches + n_current_batch
+                        progress_percentage: float = 100 * n_total_batch / self.cfg.pretraining_iterations
+                        print(f'[pretraining iteration {n_total_batch} of {self.cfg.pretraining_iterations} '
                               f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
             self.update_epoch_writer_step_offset(train_loader)
             scheduler.step()

@@ -45,17 +45,22 @@ def run_experiments(optional_args: List):
 
     elif args.training_mode == "only_critic":
         print(utils.colored(200, 0, 0, "Only training critic, progress output may still be buggy."))
-        init_l, fin_l = train_critic_without_explanations(args, device)
+        init_l, fin_l = train_only_critic(args, device, explanations=[])
         print(f"initial/final loss (only critic): {init_l}, {fin_l}")
 
     elif args.training_mode == "only_classification":
-        init_l_p, fin_l_p = train_explainer_only_classification(args, device, train_loader, test_loader)
+        init_l_p, fin_l_p = train_explainer_only_classification(args, device, train_loader, test_loader, 100)
         print(f"initial/final loss (only classification): {init_l_p}, {fin_l_p}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="after only-classification training")
 
     elif args.training_mode == "in_turns":
         train_in_turns()
+    elif args.training_mode == "one_critic_pass":
+        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
+        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
+        fin_l_p = explainer.explanation_loss(critic_loader, n_current_batch=0)
+        print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
 
@@ -72,19 +77,19 @@ def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_l
     return explainer.train(train_loader, critic_loader, test_loader, log_interval)
 
 
-def train_critic_without_explanations(args: SimpleArgumentParser, device: str) -> Tuple[Loss, Loss]:
+def train_only_critic(args: SimpleArgumentParser, device: str, explanations: List) -> Tuple[Loss, Loss]:
     critic = Critic(args, device)
 
     *_, critic_loader = utils.load_data(n_training_samples=1, n_critic_samples=args.n_critic_batches * args.batch_size,
                                         n_test_samples=1, batch_size=args.batch_size)
 
-    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations=[], n_explainer_batch_total=0)
+    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations, n_explainer_batch_total=0)
     return initial_loss, end_of_training_loss
 
 
 def train_explainer_only_classification(args: SimpleArgumentParser, device: str, train_loader: DataLoader[Any],
-                                        test_loader: DataLoader[Any]) -> Tuple[Loss, Loss]:
-    args.n_training_batches = 100
+                                        test_loader: DataLoader[Any], n_training_batches: int) -> Tuple[Loss, Loss]:
+    args.n_training_batches = n_training_batches
     explainer = Explainer(args, device)
     initial_loss, end_of_training_loss = explainer.pre_train(train_loader, test_loader, n_epochs=1)
     return initial_loss, end_of_training_loss

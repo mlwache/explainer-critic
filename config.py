@@ -20,7 +20,7 @@ class SimpleArgumentParser(Tap):
     n_critic_batches: int = 68
     # these are the default values as the MNIST training set has 60000>468*128 samples.
     n_test_batches: int = 5
-    n_epochs: int = 200
+    n_epochs: int = 40
     n_pretraining_epochs: int = 10
     # 10 episodes are enough to converge
 
@@ -77,6 +77,8 @@ class SimpleArgumentParser(Tap):
             return self.pretraining_iterations
         elif self.training_mode == 'in_turns':
             raise NotImplementedError
+        elif self.training_mode == 'one_critic_pass':
+            return self.pretraining_iterations + self.n_critic_batches
         else:
             raise ValueError(f"invalid training mode: {self.training_mode}")
 

@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 
 import utils
 from config import SimpleArgumentParser
-from experiments import train_critic_without_explanations, train_explainer_only_classification, run_experiments
+from experiments import train_only_critic, train_explainer_only_classification, run_experiments
 
 
 @pytest.fixture
@@ -19,7 +19,8 @@ def args() -> SimpleArgumentParser:
 
 
 def test_experiments_dont_crash():
-    for training_mode in ["pretrain", "combined", "only_critic", "only_classification"]:  # Todo: "in_turns"
+    for training_mode in ["pretrain", "combined", "only_critic", "only_classification", "one_critic_pass"]:
+        # Todo: "in_turns"
         run_experiments(['--batch_size=4', '--n_training_batches=2', '--n_critic_batches=2', '--n_test_batches=1',
                          '--n_epochs=2', '--logging_disabled', '--n_pretraining_epochs=1',
                          f'--training_mode={training_mode}'])
@@ -44,17 +45,15 @@ def test_main_load_data(args):
 def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
     n_classes = 10
     args.n_critic_batches = 50
-    initial_loss, end_of_training_loss = train_critic_without_explanations(args, device=utils.get_device())
+    initial_loss, end_of_training_loss = train_only_critic(args, device=utils.get_device(), explanations=[])
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1
 
 
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
-    args.n_training_batches = 50
-
     train_loader, test_loader, _ = utils.load_data_from_args(args)
     initial_loss, end_of_training_loss = train_explainer_only_classification(args, utils.get_device(),
-                                                                             train_loader, test_loader)
+                                                                             train_loader, test_loader, 50)
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1
