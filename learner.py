@@ -72,3 +72,7 @@ class Learner:
     def global_step(self, n_current_batch: int) -> int:
         # maybe to do: make this an abstract base class. for now just throw an error
         raise ValueError("Learner's global_step should not be called.")
+
+    @property
+    def n_parameters(self):
+        return sum(p.numel() for p in self.classifier.parameters() if p.requires_grad)

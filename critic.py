@@ -55,8 +55,10 @@ class Critic(Learner):
     def _log_results(self, loss, n_current_batch, n_explainer_batch_total):
         if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches - 1:
             # only print the beginning and end for now.
-            progress_percentage = 100 * (n_explainer_batch_total + 1) / self.cfg.combined_iterations
-            print(f'[iteration {n_explainer_batch_total} of {self.cfg.n_iterations} '
+            explainer_batch_combined = n_explainer_batch_total - self.cfg.pretraining_iterations
+            iteration_combined = explainer_batch_combined*self.cfg.n_critic_batches
+            progress_percentage = 100 * iteration_combined / self.cfg.combined_iterations
+            print(f'[iteration {iteration_combined} of {self.cfg.combined_iterations} '
                   f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
             print(f'crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
         if not self.cfg.logging_disabled \
