@@ -92,7 +92,8 @@ class Explainer(Learner):
                         print(f'[pretraining iteration {n_total_batch} of {self.cfg.pretraining_iterations} '
                               f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
             self.update_epoch_writer_step_offset(train_loader)
-            scheduler.step()
+            if not self.cfg.constant_lr:
+                scheduler.step()
         self.terminate_writer()
 
         return losses[0], super()._smooth_end_losses(losses)
