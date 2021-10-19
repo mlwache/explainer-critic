@@ -59,15 +59,15 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     training_set, critic_set, _ = torch.utils.data.random_split(training_and_critic_set, split)
 
     train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=batch_size,
-                                                                shuffle=True, num_workers=0)
+                                                                num_workers=0)
     critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=batch_size,
-                                                                 shuffle=False, num_workers=0)
+                                                                 num_workers=0)
 
     test_set = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
     split = [n_test_samples, len(test_set) - n_test_samples]
     test_set, _ = torch.utils.data.random_split(test_set, split)
     test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
-                                                               shuffle=True, num_workers=0)
+                                                               num_workers=0)
     return train_loader, test_loader, critic_loader
 
 
@@ -108,5 +108,5 @@ def config_string(cfg: SimpleArgumentParser, additional_string: str = "") -> str
 
 def get_one_batch_of_images(device: str, loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     images, labels = next(iter(loader))
-    images, labels = images.to(device)[:4], labels.to(device)[:4]
+    images, labels = images.to(device), labels.to(device)
     return images, labels
