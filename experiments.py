@@ -67,7 +67,7 @@ def run_experiments(optional_args: List):
 
 def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any],
                                                               SimpleArgumentParser, str, SummaryWriter]:
-    args, device, writer = main.setup(optional_args, "experiments")
+    args, device, writer = main.setup(optional_args)
     train_loader, test_loader, critic_loader = utils.load_data_from_args(args)
     return train_loader, critic_loader, test_loader, args, device, writer
 

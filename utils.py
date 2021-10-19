@@ -97,13 +97,16 @@ def write_config_to_log(args: SimpleArgumentParser, log_dir):
     # TODO: use typed_argparse's save.
 
 
-def config_string(cfg: SimpleArgumentParser, additional_string: str = "") -> str:
+def config_string(cfg: SimpleArgumentParser) -> str:
     date_time: str = str(datetime.now())[0:-7]
 
-    return f'{additional_string}_{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
-           f'_lr{cfg.learning_rate_start}' \
+    lr_mode = "const_lr" if cfg.constant_lr else "sched"
+    return f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
+           f'_lr{cfg.learning_rate_start}_{lr_mode}' \
            f'_bs{cfg.batch_size}_ep{cfg.n_epochs}_p-ep{cfg.n_pretraining_epochs}' \
-           f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches} {date_time}'
+           f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches}' \
+           f'_lr-c{cfg.learning_rate_critic}' \
+           f' {date_time}'
 
 
 def get_one_batch_of_images(device: str, loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:

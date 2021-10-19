@@ -24,7 +24,7 @@ class Critic(Learner):
         self.classifier.train()
 
         critic_loss: Module = nn.CrossEntropyLoss()
-        optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
+        optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_critic)
 
         losses: List[float] = []
         for n_current_batch, (inputs, labels) in enumerate(critic_loader):

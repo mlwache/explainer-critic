@@ -14,6 +14,7 @@ class SimpleArgumentParser(Tap):
     batch_size: int = 128
     learning_rate_start: float = 0.2
     learning_rate_step: float = 0.7
+    learning_rate_critic: float = 0.2
     pretrain_learning_rate: float = 1.0
 
     # Dataset sizes

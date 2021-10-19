@@ -13,7 +13,7 @@ from visualization import ImageHandler
 
 
 def main():
-    args, device, writer = setup([], "main")
+    args, device, writer = setup([])
 
     print('Loading Data...')
     train_loader, test_loader, critic_loader = load_data_from_args(args)
@@ -29,7 +29,7 @@ def main():
     print(f'Explainer Accuracy on {args.n_test_samples} test images: {100 * explainer_accuracy} %')
 
 
-def setup(optional_args: List, caller: str) -> Tuple[SimpleArgumentParser, str, SummaryWriter]:
+def setup(optional_args: List) -> Tuple[SimpleArgumentParser, str, SummaryWriter]:
     args = SimpleArgumentParser()
     if optional_args:
         args.parse_args(optional_args)
@@ -39,7 +39,7 @@ def setup(optional_args: List, caller: str) -> Tuple[SimpleArgumentParser, str, 
     set_sharing_strategy()
 
     if not args.logging_disabled:
-        log_dir = f"./runs/{config_string(args, caller)}"
+        log_dir = f"./runs/{config_string(args)}"
         write_config_to_log(args, log_dir)
         writer = SummaryWriter(log_dir)
     else:
