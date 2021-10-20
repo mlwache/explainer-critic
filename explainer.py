@@ -123,7 +123,7 @@ class Explainer(Learner):
     def _add_explanation_loss(self, critic_loader, loss_classification, n_current_batch):
         if critic_loader:
             loss_explanation = self.explanation_loss(critic_loader, n_current_batch)
-            loss = loss_classification + loss_explanation
+            loss = loss_classification + self.cfg.explanation_loss_weight * loss_explanation
         else:
             loss = loss_classification
         return loss
