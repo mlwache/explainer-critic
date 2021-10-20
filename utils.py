@@ -103,11 +103,17 @@ def config_string(cfg: SimpleArgumentParser) -> str:
     date_time: str = str(datetime.now())[0:-7]
 
     lr_mode = "const_lr" if cfg.constant_lr else "sched"
-    return f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
+
+    # just for somewhat nicer formatting:
+    run_name = cfg.run_name + "_" if cfg.run_name else ""
+    
+    return f'{run_name}' \
+           f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
            f'_lr{cfg.learning_rate_start}_{lr_mode}' \
            f'_bs{cfg.batch_size}_ep{cfg.n_epochs}_p-ep{cfg.n_pretraining_epochs}' \
            f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches}' \
            f'_lr-c{cfg.learning_rate_critic}' \
+           f'_lambda{cfg.explanation_loss_weight}' \
            f' {date_time}'
 
 
@@ -124,4 +130,3 @@ def set_seed(seed=42):
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
-

@@ -40,6 +40,8 @@ class SimpleArgumentParser(Tap):
     render_enabled: bool = False
     rtpt_enabled: bool = False
 
+    run_name: str = ""
+
     # config values that are rarely changed
     CLASSES: list = list(range(10))
 
