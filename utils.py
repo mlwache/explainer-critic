@@ -1,9 +1,11 @@
 import json
 import os
+import random
 import warnings
 from datetime import datetime
 from typing import Tuple, Any
 
+import numpy as np
 import torch.cuda
 import torch.multiprocessing
 import torch.utils
@@ -113,3 +115,13 @@ def get_one_batch_of_images(device: str, loader: DataLoader[Any]) -> Tuple[Tenso
     images, labels = next(iter(loader))
     images, labels = images.to(device), labels.to(device)
     return images, labels
+
+
+def set_seed(seed=42):
+    random.seed(seed)
+    # os.environ['PYTHONHASHSEED'] = str(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+

@@ -8,7 +8,7 @@ from torch.utils.tensorboard import SummaryWriter
 from config import SimpleArgumentParser
 from explainer import Explainer
 from utils import get_device, set_sharing_strategy, write_config_to_log, config_string, colored, \
-    load_data_from_args
+    load_data_from_args, set_seed
 from visualization import ImageHandler
 
 
@@ -35,6 +35,8 @@ def setup(optional_args: List) -> Tuple[SimpleArgumentParser, str, SummaryWriter
         args.parse_args(optional_args)
     else:
         args.parse_args()
+
+    set_seed()
 
     set_sharing_strategy()
 
