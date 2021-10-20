@@ -84,7 +84,9 @@ class Explainer(Learner):
                                         learning_rate=optimizer.param_groups[0]['lr'])
                     if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
                         self.log_accuracy(train_loader, test_loader, n_current_batch)
-                        ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training")
+                        global_step = self.global_step(n_current_batch)
+                        ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
+                                                         global_step=global_step)
 
                     if not critic_loader:  # in pretraining mode
                         n_total_batch = current_epoch * self.cfg.n_training_batches + n_current_batch
