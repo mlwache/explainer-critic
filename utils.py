@@ -125,7 +125,7 @@ def get_one_batch_of_images(device: str, loader: DataLoader[Any]) -> Tuple[Tenso
 
 def set_seed(seed=42):
     random.seed(seed)
-    # os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True

@@ -30,13 +30,20 @@ def run_experiments(optional_args: List):
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
 
-    elif args.training_mode == "pretrain":
+    elif args.training_mode == "pretrain_from_scratch":
         print("Pre-train the explainer first...")
+
         init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader, args.n_pretraining_epochs,
                                                 log_interval=args.log_interval_pretraining)
         print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
-        # explainer.set_pretraining_writer_step_offset(pre_training_set_size=len(train_loader),
-        #                                              critic_set_size=len(critic_loader))
+        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
+        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
+        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
+                                         additional_caption="3: after combined training")
+
+    elif args.training_mode == "pretrained":
+        explainer.load_state("./models/pretrained_model.pt")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
         print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")

@@ -30,6 +30,7 @@ class Explainer(Learner):
         self.rtpt: Optional[RTPT] = None
         self.writer_step_offset: int = 0
         self.test_batch_for_visualization = test_batch_for_visualization
+        self.optimizer: Optional[Optimizer] = None
 
     def start_rtpt(self, n_training_batches):
         self.rtpt = RTPT(name_initials='mwache',
@@ -37,8 +38,20 @@ class Explainer(Learner):
                          max_iterations=n_training_batches)
         self.rtpt.start()
 
-    def save_model(self):
-        torch.save(self.classifier.state_dict(), './models/mnist_net.pth')
+    def load_state(self, path: str):
+        checkpoint: dict = torch.load(path)
+        self.classifier.load_state_dict(checkpoint['model_state_dict'])
+        # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        # currently not needed, as we don't use checkpoints to continue training, only for inference.
+        self.classifier.train()
+
+    def save_state(self, path: str, epoch: int = -1, loss: float = -1.0):
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': self.classifier.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+            'loss': loss,
+        }, path)
 
     def pre_train(self, train_loader: DataLoader[Any], test_loader: DataLoader[Any],
                   n_epochs: int = -1, log_interval: int = -1) -> Tuple[Loss, Loss]:
@@ -46,8 +59,10 @@ class Explainer(Learner):
             n_epochs = self.cfg.n_pretraining_epochs
         if log_interval == -1:
             log_interval = self.cfg.log_interval
-        return self.train(train_loader, critic_loader=None, n_epochs=n_epochs, test_loader=test_loader,
-                          log_interval=log_interval)
+        init_loss, end_loss = self.train(train_loader, critic_loader=None, n_epochs=n_epochs, test_loader=test_loader,
+                                         log_interval=log_interval)
+        self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
+        return init_loss, end_loss
 
     def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
         training_set_size = len(train_loader)
@@ -61,27 +76,27 @@ class Explainer(Learner):
             n_epochs = self.cfg.n_epochs
 
         if critic_loader:  # parallel training mode
-            optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
+            self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.learning_rate_start)
         else:  # pretraining mode
-            optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.pretrain_learning_rate)
+            self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=self.cfg.pretrain_learning_rate)
 
         loss_function_classification: Module = nn.CrossEntropyLoss()
         # actually the type is _Loss, but that's protected, for backward compatibility.
         # https://discuss.pytorch.org/t/why-is-the-pytorch-loss-base-class-protected/123417
 
         losses: List[Loss] = []
-        scheduler = StepLR(optimizer, step_size=1, gamma=self.cfg.learning_rate_step)
+        scheduler = StepLR(self.optimizer, step_size=1, gamma=self.cfg.learning_rate_step)
         for current_epoch in range(n_epochs):
             print(f"[epoch {current_epoch}]")
             for n_current_batch, (inputs, labels) in enumerate(train_loader):
                 loss, classification_loss = self._process_batch(loss_function_classification, inputs, labels,
-                                                                n_current_batch, optimizer, critic_loader=critic_loader)
+                                                                n_current_batch, critic_loader=critic_loader)
                 losses.append(loss)
 
                 if not self.cfg.logging_disabled:
                     if n_current_batch % log_interval == 0:
                         self.log_values(losses[-1], classification_loss, n_current_batch,
-                                        learning_rate=optimizer.param_groups[0]['lr'])
+                                        learning_rate=self.optimizer.param_groups[0]['lr'])
                     if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
                         self.log_accuracy(train_loader, test_loader, n_current_batch)
                         global_step = self.global_step(n_current_batch)
@@ -101,18 +116,18 @@ class Explainer(Learner):
         return losses[0], super()._smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
-                       n_current_batch: int, optimizer: Optimizer,
+                       n_current_batch: int,
                        critic_loader: DataLoader[Any] = None) -> Tuple[Loss, Loss]:
 
         inputs, labels = inputs.to(self.device), labels.to(self.device)
 
-        optimizer.zero_grad()
+        self.optimizer.zero_grad()
         # forward + backward + optimize
         outputs = self.classifier(inputs)
         loss_classification = loss_function(outputs, labels)
         loss = self._add_explanation_loss(critic_loader, loss_classification, n_current_batch)
         loss.backward()
-        optimizer.step()
+        self.optimizer.step()
 
         return loss.item(), loss_classification.item()
 

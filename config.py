@@ -6,7 +6,7 @@ def _colored(r, g, b, text):
 
 
 class SimpleArgumentParser(Tap):
-    training_mode: str = "pretrain"
+    training_mode: str = "pretrained"
     logging_disabled: bool = False
     constant_lr: bool = False
 
@@ -72,9 +72,9 @@ class SimpleArgumentParser(Tap):
 
     @property
     def n_iterations(self) -> int:
-        if self.training_mode == 'combined':
+        if self.training_mode == 'combined' or self.training_mode == "pretrained":
             return self.combined_iterations
-        elif self.training_mode == 'pretrain':
+        elif self.training_mode == 'pretrain_from_scratch':
             return self.pretraining_iterations + self.combined_iterations
         elif self.training_mode == 'only_critic':
             return self.n_critic_batches  # critic only trains one episode

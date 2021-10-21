@@ -14,7 +14,11 @@ Here you can find a [formalization and more detailed description](https://hackmd
 
 ## Usage
 
-Run `python3 main.py -h` to show available options to run.
+* Run `python3 experiments.py -h` to show available options to run.
+* before using `python3 experiments.py --training_mode pretrained` (which is the default training mode), there needs to be a `models` folder with a pretrained model in it.
+    * running one of the following will save the pretrained model to the `models` folder:
+        * `python3 experiments.py --training_mode classification_only` (only pretraining)
+        * `python3 experiments.py --training_mode pretrain_from_scratch` (pretraining+combined training)
 
 ## Setup
 

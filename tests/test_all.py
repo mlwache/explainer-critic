@@ -19,7 +19,8 @@ def args() -> SimpleArgumentParser:
 
 
 def test_experiments_dont_crash():
-    for training_mode in ["pretrain", "combined", "only_critic", "only_classification", "one_critic_pass"]:
+    for training_mode in ["pretrained", "combined", "only_critic", "only_classification", "one_critic_pass",
+                          "pretrain_from_scratch"]:
         # Todo: "in_turns"
         run_experiments(['--batch_size=4', '--n_training_batches=2', '--n_critic_batches=2', '--n_test_batches=1',
                          '--n_epochs=2', '--logging_disabled', '--n_pretraining_epochs=1',
