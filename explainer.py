@@ -1,3 +1,4 @@
+import os
 from typing import Any, Tuple, List, Optional
 
 import torch
@@ -46,12 +47,17 @@ class Explainer(Learner):
         self.classifier.train()
 
     def save_state(self, path: str, epoch: int = -1, loss: float = -1.0):
+
+        # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
+        os.replace(path, path + "_previous.pt")
+
         torch.save({
             'epoch': epoch,
             'model_state_dict': self.classifier.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
             'loss': loss,
         }, path)
+        print(colored(200, 100, 0, f"Saved model to {path}"))
 
     def pre_train(self, train_loader: DataLoader[Any], test_loader: Optional[DataLoader[Any]],
                   n_epochs: int = -1, log_interval: int = -1) -> Tuple[Loss, Loss]:
