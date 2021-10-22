@@ -6,9 +6,11 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
+import main
 import utils
 from config import SimpleArgumentParser
-from experiments import train_only_critic, train_explainer_only_classification, run_experiments
+from experiments import train_only_critic, run_experiments
+from explainer import Explainer
 
 
 @pytest.fixture
@@ -38,9 +40,9 @@ def test_main_load_data(args):
         images, labels = train_data_sample
         assert len(images) == args.batch_size
         assert images[0].size() == torch.Size([1, 28, 28])
-        assert torch.all(images[0].data.ge(-1*torch.ones_like(images)))
+        assert torch.all(images[0].data.ge(-1 * torch.ones_like(images)))
         # the upper bound is higher, as the images are normalized and there are less white/high-value pixels
-        assert torch.all(images[0].data.le(5*torch.ones_like(images)))
+        assert torch.all(images[0].data.le(5 * torch.ones_like(images)))
 
 
 def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
@@ -53,8 +55,10 @@ def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
 
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
-    train_loader, test_loader, _ = utils.load_data_from_args(args)
-    initial_loss, end_of_training_loss = train_explainer_only_classification(args, utils.get_device(),
-                                                                             train_loader, test_loader, 50)
+    n_training_samples = 20 * args.batch_size # 20 batches
+    train_loader, *_ = utils.load_data(n_training_samples, n_critic_samples=0, n_test_samples=0,
+                                       batch_size=args.batch_size)
+    explainer = Explainer(args, device=utils.get_device())
+    initial_loss, end_of_training_loss = explainer.pre_train(train_loader, test_loader=None, n_epochs=1)
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1

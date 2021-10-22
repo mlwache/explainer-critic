@@ -32,9 +32,7 @@ def run_experiments(optional_args: List):
 
     elif args.training_mode == "pretrain_from_scratch":
         print("Pre-train the explainer first...")
-
-        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader, args.n_pretraining_epochs,
-                                                log_interval=args.log_interval_pretraining)
+        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
         print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
@@ -56,10 +54,12 @@ def run_experiments(optional_args: List):
         print(f"initial/final loss (only critic): {init_l}, {fin_l}")
 
     elif args.training_mode == "only_classification":
-        init_l_p, fin_l_p = train_explainer_only_classification(args, device, train_loader, test_loader, 100)
+        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
         print(f"initial/final loss (only classification): {init_l_p}, {fin_l_p}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="after only-classification training")
+        print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
+        ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
 
     elif args.training_mode == "in_turns":
         train_in_turns()
@@ -91,14 +91,6 @@ def train_only_critic(args: SimpleArgumentParser, device: str, explanations: Lis
                                         n_test_samples=1, batch_size=args.batch_size)
 
     initial_loss, end_of_training_loss = critic.train(critic_loader, explanations, n_explainer_batch_total=0)
-    return initial_loss, end_of_training_loss
-
-
-def train_explainer_only_classification(args: SimpleArgumentParser, device: str, train_loader: DataLoader[Any],
-                                        test_loader: DataLoader[Any], n_training_batches: int) -> Tuple[Loss, Loss]:
-    args.n_training_batches = n_training_batches
-    explainer = Explainer(args, device)
-    initial_loss, end_of_training_loss = explainer.pre_train(train_loader, test_loader, n_epochs=1)
     return initial_loss, end_of_training_loss
 
 

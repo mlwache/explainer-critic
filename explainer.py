@@ -53,7 +53,7 @@ class Explainer(Learner):
             'loss': loss,
         }, path)
 
-    def pre_train(self, train_loader: DataLoader[Any], test_loader: DataLoader[Any],
+    def pre_train(self, train_loader: DataLoader[Any], test_loader: Optional[DataLoader[Any]],
                   n_epochs: int = -1, log_interval: int = -1) -> Tuple[Loss, Loss]:
         if n_epochs == -1:
             n_epochs = self.cfg.n_pretraining_epochs
