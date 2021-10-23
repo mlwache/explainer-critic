@@ -49,7 +49,8 @@ class Explainer(Learner):
     def save_state(self, path: str, epoch: int = -1, loss: float = -1.0):
 
         # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
-        os.replace(path, path + "_previous.pt")
+        if os.path.isfile(path):
+            os.replace(path, path + "_previous.pt")
 
         torch.save({
             'epoch': epoch,

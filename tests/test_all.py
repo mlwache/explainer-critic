@@ -6,7 +6,6 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-import main
 import utils
 from config import SimpleArgumentParser
 from experiments import train_only_critic, run_experiments
@@ -55,7 +54,7 @@ def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
 
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
-    n_training_samples = 20 * args.batch_size # 20 batches
+    n_training_samples = 20 * args.batch_size  # 20 batches
     train_loader, *_ = utils.load_data(n_training_samples, n_critic_samples=0, n_test_samples=0,
                                        batch_size=args.batch_size)
     explainer = Explainer(args, device=utils.get_device())
