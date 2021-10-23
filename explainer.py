@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import global_vars
 from config import SimpleArgumentParser
 from critic import Critic
 from learner import Learner
@@ -29,7 +30,7 @@ class Explainer(Learner):
                  test_batch_for_visualization: Tuple[Tensor, Tensor] = None, writer: SummaryWriter = None):
         super().__init__(cfg, device, writer)
         self.rtpt: Optional[RTPT] = None
-        self.writer_step_offset: int = 0
+        # self.writer_step_offset: int = 0
         self.test_batch_for_visualization = test_batch_for_visualization
         self.optimizer: Optional[Optimizer] = None
 
@@ -71,9 +72,9 @@ class Explainer(Learner):
         self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
         return init_loss, end_loss
 
-    def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
-        training_set_size = len(train_loader)
-        self.writer_step_offset += training_set_size * self.cfg.n_critic_batches
+    # def update_epoch_writer_step_offset(self, train_loader: DataLoader[Any]):
+    #     training_set_size = len(train_loader)
+    #     self.writer_step_offset += training_set_size * self.cfg.n_critic_batches
 
     def train(self, train_loader: DataLoader[Any], critic_loader: Optional[DataLoader[Any]],
               test_loader: Optional[DataLoader[Any]], log_interval: int, n_epochs: int = -1) -> Tuple[Loss, Loss]:
@@ -106,16 +107,17 @@ class Explainer(Learner):
                                         learning_rate=self.optimizer.param_groups[0]['lr'])
                     if n_current_batch % self.cfg.log_interval_accuracy == 0 and test_loader:
                         self.log_accuracy(train_loader, test_loader, n_current_batch)
-                        global_step = self.global_step(n_current_batch)
+                        # global_step = self.global_step(n_current_batch)
                         ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
-                                                         global_step=global_step)
+                                                         global_step=global_vars.global_step)
 
                     if not critic_loader:  # in pretraining mode
                         n_total_batch = current_epoch * self.cfg.n_training_batches + n_current_batch
                         progress_percentage: float = 100 * n_total_batch / self.cfg.pretraining_iterations
                         print(f'[pretraining iteration {n_total_batch} of {self.cfg.pretraining_iterations} '
                               f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
-            self.update_epoch_writer_step_offset(train_loader)
+                        global_vars.global_step += 1
+            # self.update_epoch_writer_step_offset(train_loader)
             if not self.cfg.constant_lr:
                 scheduler.step()
         self.terminate_writer()
@@ -165,13 +167,13 @@ class Explainer(Learner):
         if self.cfg.rtpt_enabled:
             self.rtpt.step(subtitle=f"loss={loss:2.2f}")
 
-    def global_step(self, n_current_batch: int) -> int:
-        relative_step = n_current_batch * self.cfg.n_critic_batches if \
-            self.cfg.n_critic_batches != 0 else n_current_batch
-        return self.writer_step_offset + relative_step
+    # def global_step(self, n_current_batch: int) -> int:
+    #     relative_step = n_current_batch * self.cfg.n_critic_batches if \
+    #         self.cfg.n_critic_batches != 0 else n_current_batch
+    #     return self.writer_step_offset + relative_step
 
     def add_scalars_to_writer(self, loss, loss_classification, n_current_batch, learning_rate):
-        global_step = self.global_step(n_current_batch)
+        global_step = global_vars.global_step
         if self.writer:
             self.writer.add_scalar("Explainer_Training/Explanation", loss - loss_classification,
                                    global_step=global_step)
@@ -188,8 +190,8 @@ class Explainer(Learner):
             explanations.append(self.rescaled_input_gradient(inputs, labels))
 
         critic_end_of_training_loss: float
-        n_current_batch_total = (self.writer_step_offset // len(critic_loader)) + n_current_batch
-        _, critic_end_of_training_loss = critic.train(critic_loader, explanations, n_current_batch_total)
+        # n_current_batch_total = (self.writer_step_offset // len(critic_loader)) + n_current_batch
+        _, critic_end_of_training_loss = critic.train(critic_loader, explanations)
 
         return critic_end_of_training_loss
 

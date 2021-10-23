@@ -5,6 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import global_vars
 from config import SimpleArgumentParser
 from net import Net
 from utils import colored
@@ -59,7 +60,7 @@ class Learner:
         return total_accuracy
 
     def log_accuracy(self, train_loader: DataLoader[Any], test_loader: DataLoader[Any], n_current_batch: int):
-        global_step: int = self.global_step(n_current_batch)
+        global_step = global_vars.global_step
         training_accuracy = self.compute_accuracy(train_loader)
         # test_accuracy = -0.1  # just for initializing. negative so that we will notice if it's unchanged
         test_accuracy = self.compute_accuracy(test_loader)
@@ -69,9 +70,9 @@ class Learner:
             if test_loader:
                 self.writer.add_scalar("Explainer_Training/Test_Accuracy", test_accuracy, global_step=global_step)
 
-    def global_step(self, n_current_batch: int) -> int:
-        # maybe to do: make this an abstract base class. for now just throw an error
-        raise ValueError("Learner's global_step should not be called.")
+    # def global_step(self, n_current_batch: int) -> int:
+    #     # maybe to do: make this an abstract base class. for now just throw an error
+    #     raise ValueError("Learner's global_step should not be called.")
 
     @property
     def n_parameters(self):

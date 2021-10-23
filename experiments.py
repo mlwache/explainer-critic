@@ -9,11 +9,12 @@ from visualization import ImageHandler
 from config import SimpleArgumentParser
 from critic import Critic
 from explainer import Explainer
-
+import global_vars
 Loss = float
 
 
 def run_experiments(optional_args: List):
+    global_vars.global_step = 0
     print("Setting up experiments...")
     train_loader, critic_loader, test_loader, args, device, writer \
         = set_up_experiments_combined(optional_args)
@@ -90,7 +91,7 @@ def train_only_critic(args: SimpleArgumentParser, device: str, explanations: Lis
     *_, critic_loader = utils.load_data(n_training_samples=1, n_critic_samples=args.n_critic_batches * args.batch_size,
                                         n_test_samples=1, batch_size=args.batch_size)
 
-    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations, n_explainer_batch_total=0)
+    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations)
     return initial_loss, end_of_training_loss
 
 
