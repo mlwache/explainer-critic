@@ -15,15 +15,16 @@ def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    explainer, test_loader = set_up_evaluation_experiments(batch_size=100)
+    explainer, test_loader, device = set_up_evaluation_experiments(batch_size=100)
 
     inputs, labels = iter(test_loader).__next__()
+    inputs, labels = inputs.to(device), labels.to(device)
 
     print("prediction: ", explainer.predict(inputs))
     print("ground truth: ", labels)
 
 
-def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoader[Any]]:
+def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoader[Any], str]:
     cfg, device, _ = main.setup([], eval_mode=True)
 
     explainer = Explainer(cfg, device, test_batch_for_visualization=None, writer=None)
@@ -40,7 +41,7 @@ def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoade
     test_set = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
     test_loader = DataLoader(test_set, batch_size)
 
-    return explainer, test_loader
+    return explainer, test_loader, device
 
 
 def get_model_path(cfg: SimpleArgumentParser):
