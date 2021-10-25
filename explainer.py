@@ -12,6 +12,7 @@ from torch.utils.data.dataloader import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 import global_vars
+import utils
 from config import SimpleArgumentParser
 from critic import Critic
 from learner import Learner
@@ -110,7 +111,6 @@ class Explainer(Learner):
                         # global_step = self.global_step(n_current_batch)
                         ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
                                                          global_step=global_vars.global_step)
-
                     if not critic_loader:  # in pretraining mode
                         n_total_batch = current_epoch * self.cfg.n_training_batches + n_current_batch
                         progress_percentage: float = 100 * n_total_batch / self.cfg.pretraining_iterations
@@ -118,6 +118,8 @@ class Explainer(Learner):
                               f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
                         global_vars.global_step += 1
             # self.update_epoch_writer_step_offset(train_loader)
+
+            self.save_state(f"models/{utils.config_string(self.cfg)}.pt", epoch=n_epochs, loss=losses[-1])
             if not self.cfg.constant_lr:
                 scheduler.step()
         self.terminate_writer()
