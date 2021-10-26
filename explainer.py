@@ -163,7 +163,7 @@ class Explainer(Learner):
 
     def print_statistics(self, loss, loss_classification, n_current_batch):
         # print statistics
-        print(f'explainer [batch  {n_current_batch}] \n'
+        print(f'{self.cfg.run_name}, explainer [batch  {n_current_batch}] \n'
               f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
               f' + {loss - loss_classification:.3f}(explanation)')
         if self.cfg.rtpt_enabled:
