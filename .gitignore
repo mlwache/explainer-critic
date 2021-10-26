@@ -2,3 +2,5 @@ __pycache__/
 data/
 tests/.pytest_cache/
 runs/
+experiments.cprof
+experiments.py.lprof
