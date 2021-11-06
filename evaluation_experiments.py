@@ -5,7 +5,6 @@ import torchvision
 from torch.utils.data import DataLoader
 from torchvision import transforms as transforms
 
-import main
 import utils
 from config import SimpleArgumentParser
 from explainer import Explainer
@@ -25,7 +24,7 @@ def run_evaluation_experiments():
 
 
 def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoader[Any], str]:
-    cfg, device, _ = main.setup([], eval_mode=True)
+    cfg, device, _ = utils.setup([], eval_mode=True)
 
     explainer = Explainer(cfg, device, test_batch_for_visualization=None, writer=None)
 

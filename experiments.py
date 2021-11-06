@@ -3,7 +3,6 @@ from typing import Tuple, List
 from torch.utils.tensorboard import SummaryWriter
 
 import global_vars
-import main
 import utils
 from config import SimpleArgumentParser
 from critic import Critic
@@ -71,10 +70,11 @@ def run_experiments(optional_args: List):
         print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
+    print(utils.colored(0, 200, 0, "Finished!"))
 
 
 def set_up_experiments_combined(optional_args: List) -> Tuple[Loaders, SimpleArgumentParser, str, SummaryWriter]:
-    args, device, writer = main.setup(optional_args)
+    args, device, writer = utils.setup(optional_args)
     loaders = utils.load_data_from_args(args)
     return loaders, args, device, writer
 

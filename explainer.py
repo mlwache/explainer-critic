@@ -34,11 +34,13 @@ class Explainer(Learner):
         # self.writer_step_offset: int = 0
         self.test_batch_for_visualization = test_batch_for_visualization
         self.optimizer: Optional[Optimizer] = None
+        if cfg.rtpt_enabled:
+            self.start_rtpt(cfg.n_iterations)
 
-    def start_rtpt(self, n_training_batches):
+    def start_rtpt(self, n_iterations):
         self.rtpt = RTPT(name_initials='mwache',
                          experiment_name='explainer-critic',
-                         max_iterations=n_training_batches)
+                         max_iterations=n_iterations)
         self.rtpt.start()
 
     def load_state(self, path: str):

@@ -3,16 +3,18 @@ import os
 import random
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple, Any, Optional
+from typing import Tuple, Any, Optional, List
 
 import numpy as np
 import torch.cuda
 import torch.multiprocessing
 from torch import Tensor
 from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
+from visualization import ImageHandler
 
 
 @dataclass
@@ -155,3 +157,29 @@ class FastMNIST(MNIST):
         img, target = self.data[index], self.targets[index]
 
         return img, target
+
+
+def setup(optional_args: List, eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, SummaryWriter]:
+    args = SimpleArgumentParser()
+    if optional_args:
+        args.parse_args(optional_args)
+    else:
+        args.parse_args()
+
+    set_seed()
+
+    set_sharing_strategy()
+
+    if not (args.logging_disabled or eval_mode):
+        log_dir = f"./runs/{config_string(args)}"
+        write_config_to_log(args, log_dir)
+        writer = SummaryWriter(log_dir)
+    else:
+        writer = None
+
+    device = get_device()
+
+    ImageHandler.device, ImageHandler.writer = device, writer
+    ImageHandler.MEAN_MNIST, ImageHandler.STD_DEV_MNIST = args.MEAN_MNIST, args.STD_DEV_MNIST
+
+    return args, device, writer

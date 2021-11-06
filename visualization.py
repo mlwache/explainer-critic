@@ -9,7 +9,6 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import functional
 
 # from torchviz import make_dot
-from utils import colored
 
 
 class ImageHandler:
@@ -79,3 +78,7 @@ class ImageHandler:
             ImageHandler.writer.add_image(caption, combined_image, global_step=global_step)
         else:
             print(colored(200, 0, 0, f"No writer set - skipped adding {caption} images."))
+
+
+def colored(r, g, b, text):
+    return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
