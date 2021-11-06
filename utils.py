@@ -51,7 +51,7 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     # for the visualization get 50 samples of the dataset, 5 for each label
     visualization_sets = []
     for label in range(10):
-        visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:4]))
+        visualization_sets.append(Subset(test_set, torch.where(test_set.targets == label)[0][:4]))
     visualization_set = ConcatDataset(visualization_sets)
     n_vis_samples = visualization_set.cumulative_sizes[-1]
 
