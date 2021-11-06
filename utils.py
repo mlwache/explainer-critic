@@ -1,75 +1,57 @@
 import json
 import os
 import random
-import warnings
 from datetime import datetime
 from typing import Tuple, Any
 
 import numpy as np
 import torch.cuda
 import torch.multiprocessing
-import torch.utils
-import torchvision
 from torch import Tensor
-from torch.utils.data import DataLoader
-from torchvision import transforms as transforms
+from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
 from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
 
 
-def load_data_from_args(args: SimpleArgumentParser) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
+def load_data_from_args(args: SimpleArgumentParser) -> Tuple[DataLoader[Any], DataLoader[Any],
+                                                             DataLoader[Any]]:
     return load_data(args.n_training_samples, args.n_critic_samples, args.n_test_samples, args.batch_size)
 
 
 # noinspection PyShadowingNames
-def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: int, batch_size: int) -> \
-        Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
-    # dataset splits for the different parts of training and testing
-    training_set: MNIST
-    critic_set: MNIST
-    test_set: MNIST
+def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: int,
+              batch_size: int) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
 
-    mean_mnist = 0.1307
-    std_dev_mnist = 0.3081
-    transform_mnist = transforms.Compose(
-        [transforms.ToTensor(),
-         torchvision.transforms.Normalize((mean_mnist,), (std_dev_mnist,))
-         ])
-    # transformation that first makes data to a tensor, and then normalizes them.
-    # I took the mean and stddev from here:
-    # https://nextjournal.com/gkoehler/pytorch-mnist (taking them as given for now)
-    # maybe to do: compute them myself, that seems more robust than taking magic numbers from the internet.
+    training_and_critic_set = FastMNIST('./data', train=True, download=True)
+    full_test_set = FastMNIST('./data', train=False, download=True)
+    # loads the data to the ./data folder
 
-    with warnings.catch_warnings():  # Ignore warning, as it's caused by the underlying functional,
-        # and I think would require me to change the site-packages in order to fix it.
-        warnings.simplefilter("ignore")
-        training_and_critic_set: MNIST = torchvision.datasets.MNIST('./data', train=True, download=True,
-                                                                    transform=transform_mnist)
-        # loads the data to .data folder
-        # ignores the UserWarning: The given NumPy array is not writeable,
-        # and PyTorch does not support non-writeable tensors.
-        # This means you can write to the underlying (supposedly non-writeable)
-        # NumPy array using the tensor. You may want to copy the array to protect its data
-        # or make it writeable before converting it to a tensor.
-        # This type of warning will be suppressed for the rest of this program.
-
+    # check that we have enough samples:
     n_total_training_samples = n_training_samples + n_critic_samples
     n_spare_samples = len(training_and_critic_set) - n_total_training_samples
-    assert n_spare_samples >= 0, f"{n_total_training_samples} are too much."
-    split = [n_training_samples, n_critic_samples, n_spare_samples]
-    training_set, critic_set, _ = torch.utils.data.random_split(training_and_critic_set, split)
+    assert n_spare_samples >= 0, f"{n_total_training_samples} samples are too much. " \
+                                 f"Please reduce the number of training or critic batches, or the batch size."
 
-    train_loader: DataLoader[Any] = torch.utils.data.DataLoader(training_set, batch_size=batch_size,
-                                                                num_workers=0)
-    critic_loader: DataLoader[Any] = torch.utils.data.DataLoader(critic_set, batch_size=batch_size,
-                                                                 num_workers=0)
+    # split training set into one training set for the classification, and one for the critic
+    train_split = [n_training_samples, n_critic_samples, n_spare_samples]
+    training_set, critic_set, _ = random_split(training_and_critic_set, train_split)
 
-    test_set = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
-    split = [n_test_samples, len(test_set) - n_test_samples]
-    test_set, _ = torch.utils.data.random_split(test_set, split)
-    test_loader: DataLoader[Any] = torch.utils.data.DataLoader(test_set, batch_size=batch_size,
-                                                               num_workers=0)
+    # get a randomly split set for testing, and an ordered subset for the visualization
+    test_split = [n_test_samples, len(full_test_set) - n_test_samples]
+    test_set, _ = random_split(full_test_set, test_split)
+    test_set = test_set.dataset
+    # for the visualization get 50 samples of the dataset, 5 for each label
+    # visualization_sets = []
+    # for label in range(10):
+    #     visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:5]))
+    # visualization_set = ConcatDataset(visualization_sets)
+
+    train_loader: DataLoader[Any] = DataLoader(training_set, batch_size=batch_size, num_workers=0)
+    critic_loader: DataLoader[Any] = DataLoader(critic_set, batch_size=batch_size, num_workers=0)
+    test_loader: DataLoader[Any] = DataLoader(test_set, batch_size=batch_size, num_workers=0)
+    # visualization_loader: DataLoader[Any] = DataLoader(visualization_set, batch_size=batch_size, num_workers=0)
+
     return train_loader, test_loader, critic_loader
 
 
@@ -105,7 +87,6 @@ def date_time_string():
 
 
 def config_string(cfg: SimpleArgumentParser) -> str:
-
     lr_mode = "const_lr" if cfg.constant_lr else "sched"
 
     # just for somewhat nicer formatting:
@@ -134,3 +115,34 @@ def set_seed(seed=42):
     torch.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
+
+class FastMNIST(MNIST):
+    # code snippet from https://github.com/y0ast/pytorch-snippets/tree/main/fast_mnist
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Scale data to [0,1]
+        self.data = self.data.unsqueeze(1).float().div(255)
+
+        mean_mnist = 0.1307
+        std_dev_mnist = 0.3081
+
+        # Normalize it with the usual MNIST mean and std
+        self.data = self.data.sub_(mean_mnist).div_(std_dev_mnist)
+
+        # Put both data and targets on GPU in advance
+        device = get_device()
+        self.data, self.targets = self.data.to(device), self.targets.to(device)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        return img, target
