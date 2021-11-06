@@ -51,14 +51,15 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     # for the visualization get 50 samples of the dataset, 5 for each label
     visualization_sets = []
     for label in range(10):
-        visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:5]))
+        visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:4]))
     visualization_set = ConcatDataset(visualization_sets)
+    n_vis_samples = visualization_set.cumulative_sizes[-1]
 
     loaders = Loaders(
         train=DataLoader(training_set, batch_size=batch_size, num_workers=0),
         critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0),
         test=DataLoader(test_set, batch_size=batch_size, num_workers=0),
-        visualization=DataLoader(visualization_set, batch_size=batch_size, num_workers=0))
+        visualization=DataLoader(visualization_set, batch_size=n_vis_samples, num_workers=0))
 
     return loaders
 

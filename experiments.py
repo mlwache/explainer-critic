@@ -19,7 +19,7 @@ def run_experiments(optional_args: List):
     print("Setting up experiments...")
     loaders, args, device, writer = set_up_experiments_combined(optional_args)
 
-    test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.test)
+    test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
     explainer = Explainer(args, device, test_batch_to_visualize, writer)
     ImageHandler.add_input_images(test_batch_to_visualize[0])
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
