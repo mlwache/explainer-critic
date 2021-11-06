@@ -42,12 +42,6 @@ class SimpleArgumentParser(Tap):
 
     run_name: str = ""
 
-    # config values that are rarely changed
-    CLASSES: list = list(range(10))
-
-    MEAN_MNIST: float = 0.1307
-    STD_DEV_MNIST: float = 0.3081
-
     def process_args(self):
         low_number_of_iterations = 50
         n_iterations = self.n_iterations

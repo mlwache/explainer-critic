@@ -15,6 +15,7 @@ from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
 from visualization import ImageHandler
+import global_vars
 
 
 @dataclass
@@ -52,7 +53,7 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     test_set = test_set.dataset
     # for the visualization get 50 samples of the dataset, 5 for each label
     visualization_sets = []
-    for label in range(10):
+    for label in global_vars.CLASSES:
         visualization_sets.append(Subset(test_set, torch.where(test_set.targets == label)[0][:4]))
     visualization_set = ConcatDataset(visualization_sets)
     n_vis_samples = visualization_set.cumulative_sizes[-1]
@@ -136,11 +137,8 @@ class FastMNIST(MNIST):
         # Scale data to [0,1]
         self.data = self.data.unsqueeze(1).float().div(255)
 
-        mean_mnist = 0.1307
-        std_dev_mnist = 0.3081
-
         # Normalize it with the usual MNIST mean and std
-        self.data = self.data.sub_(mean_mnist).div_(std_dev_mnist)
+        self.data = self.data.sub_(global_vars.MEAN_MNIST).div_(global_vars.STD_DEV_MNIST)
 
         # Put both data and targets on GPU in advance
         device = get_device()
@@ -180,6 +178,6 @@ def setup(optional_args: List, eval_mode: bool = False) -> Tuple[SimpleArgumentP
     device = get_device()
 
     ImageHandler.device, ImageHandler.writer = device, writer
-    ImageHandler.MEAN_MNIST, ImageHandler.STD_DEV_MNIST = args.MEAN_MNIST, args.STD_DEV_MNIST
+    ImageHandler.MEAN_MNIST, ImageHandler.STD_DEV_MNIST = global_vars.MEAN_MNIST, global_vars.STD_DEV_MNIST
 
     return args, device, writer
