@@ -1,8 +1,9 @@
 import json
 import os
 import random
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Tuple, Any
+from typing import Tuple, Any, Optional
 
 import numpy as np
 import torch.cuda
@@ -14,15 +15,21 @@ from torchvision.datasets import MNIST
 from config import SimpleArgumentParser
 
 
-def load_data_from_args(args: SimpleArgumentParser) -> Tuple[DataLoader[Any], DataLoader[Any],
-                                                             DataLoader[Any]]:
+@dataclass
+class Loaders:
+    train: DataLoader[Any]
+    critic: Optional[DataLoader[Any]]
+    test: Optional[DataLoader[Any]]
+    visualization: Optional[DataLoader[Any]]
+
+
+def load_data_from_args(args: SimpleArgumentParser) -> Loaders:
     return load_data(args.n_training_samples, args.n_critic_samples, args.n_test_samples, args.batch_size)
 
 
 # noinspection PyShadowingNames
 def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: int,
-              batch_size: int) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any]]:
-
+              batch_size: int) -> Loaders:
     training_and_critic_set = FastMNIST('./data', train=True, download=True)
     full_test_set = FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
@@ -42,17 +49,18 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     test_set, _ = random_split(full_test_set, test_split)
     test_set = test_set.dataset
     # for the visualization get 50 samples of the dataset, 5 for each label
-    # visualization_sets = []
-    # for label in range(10):
-    #     visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:5]))
-    # visualization_set = ConcatDataset(visualization_sets)
+    visualization_sets = []
+    for label in range(10):
+        visualization_sets.append(Subset(test_set, np.where(test_set.targets == label)[0][:5]))
+    visualization_set = ConcatDataset(visualization_sets)
 
-    train_loader: DataLoader[Any] = DataLoader(training_set, batch_size=batch_size, num_workers=0)
-    critic_loader: DataLoader[Any] = DataLoader(critic_set, batch_size=batch_size, num_workers=0)
-    test_loader: DataLoader[Any] = DataLoader(test_set, batch_size=batch_size, num_workers=0)
-    # visualization_loader: DataLoader[Any] = DataLoader(visualization_set, batch_size=batch_size, num_workers=0)
+    loaders = Loaders(
+        train=DataLoader(training_set, batch_size=batch_size, num_workers=0),
+        critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0),
+        test=DataLoader(test_set, batch_size=batch_size, num_workers=0),
+        visualization=DataLoader(visualization_set, batch_size=batch_size, num_workers=0))
 
-    return train_loader, test_loader, critic_loader
+    return loaders
 
 
 def colored(r, g, b, text):
@@ -91,7 +99,7 @@ def config_string(cfg: SimpleArgumentParser) -> str:
 
     # just for somewhat nicer formatting:
     run_name = cfg.run_name + "_" if cfg.run_name else ""
-    
+
     return f'{run_name}' \
            f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
            f'_lr{cfg.learning_rate_start}_{lr_mode}' \

@@ -99,7 +99,7 @@ class Explainer(Learner):
             print(f"[epoch {current_epoch}]")
             for n_current_batch, (inputs, labels) in enumerate(train_loader):
                 loss, classification_loss = self._process_batch(loss_function_classification, inputs, labels,
-                                                                n_current_batch, critic_loader=critic_loader)
+                                                                critic_loader=critic_loader)
                 losses.append(loss)
 
                 if not self.cfg.logging_disabled:
@@ -127,7 +127,6 @@ class Explainer(Learner):
         return losses[0], super()._smooth_end_losses(losses)
 
     def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
-                       n_current_batch: int,
                        critic_loader: DataLoader[Any] = None) -> Tuple[Loss, Loss]:
 
         inputs, labels = inputs.to(self.device), labels.to(self.device)
@@ -136,7 +135,7 @@ class Explainer(Learner):
         # forward + backward + optimize
         outputs = self.classifier(inputs)
         loss_classification = loss_function(outputs, labels)
-        loss = self._add_explanation_loss(critic_loader, loss_classification, n_current_batch)
+        loss = self._add_explanation_loss(critic_loader, loss_classification)
         loss.backward()
         self.optimizer.step()
 
@@ -144,13 +143,12 @@ class Explainer(Learner):
 
     def log_values(self, loss, loss_classification, n_current_batch, learning_rate):
 
-        self.add_scalars_to_writer(loss, loss_classification, n_current_batch,
-                                   learning_rate)
+        self.add_scalars_to_writer(loss, loss_classification, learning_rate)
         self.print_statistics(loss, loss_classification, n_current_batch)
 
-    def _add_explanation_loss(self, critic_loader, loss_classification, n_current_batch):
+    def _add_explanation_loss(self, critic_loader, loss_classification):
         if critic_loader:
-            loss_explanation = self.explanation_loss(critic_loader, n_current_batch)
+            loss_explanation = self.explanation_loss(critic_loader)
             loss = loss_classification + self.cfg.explanation_loss_weight * loss_explanation
         else:
             loss = loss_classification
@@ -174,7 +172,7 @@ class Explainer(Learner):
     #         self.cfg.n_critic_batches != 0 else n_current_batch
     #     return self.writer_step_offset + relative_step
 
-    def add_scalars_to_writer(self, loss, loss_classification, n_current_batch, learning_rate):
+    def add_scalars_to_writer(self, loss, loss_classification, learning_rate):
         global_step = global_vars.global_step
         if self.writer:
             self.writer.add_scalar("Explainer_Training/Explanation", loss - loss_classification,
@@ -184,7 +182,7 @@ class Explainer(Learner):
             self.writer.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
             self.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
-    def explanation_loss(self, critic_loader: DataLoader, n_current_batch: int) -> float:
+    def explanation_loss(self, critic_loader: DataLoader) -> float:
         critic = Critic(self.cfg, self.device, self.writer)
         explanations = []
         for inputs, labels in critic_loader:

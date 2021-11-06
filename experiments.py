@@ -1,42 +1,42 @@
-from typing import Tuple, Any, List
+from typing import Tuple, List
 
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
+import global_vars
 import main
 import utils
-from visualization import ImageHandler
 from config import SimpleArgumentParser
 from critic import Critic
 from explainer import Explainer
-import global_vars
+from utils import Loaders
+from visualization import ImageHandler
+
 Loss = float
 
 
 def run_experiments(optional_args: List):
     global_vars.global_step = 0
     print("Setting up experiments...")
-    train_loader, critic_loader, test_loader, args, device, writer \
-        = set_up_experiments_combined(optional_args)
+    loaders, args, device, writer = set_up_experiments_combined(optional_args)
 
-    test_batch_to_visualize = utils.get_one_batch_of_images(device, test_loader)
+    test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.test)
     explainer = Explainer(args, device, test_batch_to_visualize, writer)
     ImageHandler.add_input_images(test_batch_to_visualize[0])
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
 
     if args.training_mode == "combined":
         print("Training together with simple combined loss...")
-        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        init_l, fin_l = train_together(explainer, loaders, args.log_interval)
         print(f"initial/final loss:{init_l:.3f}, {fin_l:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
 
     elif args.training_mode == "pretrain_from_scratch":
         print("Pre-train the explainer first...")
-        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
+        init_l_p, fin_l_p = explainer.pre_train(loaders.train, loaders.test)
         print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        init_l, fin_l = train_together(explainer, loaders, args.log_interval)
         print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
@@ -44,7 +44,7 @@ def run_experiments(optional_args: List):
     elif args.training_mode == "pretrained":
         explainer.load_state("./models/pretrained_model.pt")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        init_l, fin_l = train_together(explainer, critic_loader, train_loader, test_loader, args.log_interval)
+        init_l, fin_l = train_together(explainer, loaders, args.log_interval)
         print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
@@ -55,7 +55,7 @@ def run_experiments(optional_args: List):
         print(f"initial/final loss (only critic): {init_l}, {fin_l}")
 
     elif args.training_mode == "only_classification":
-        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
+        init_l_p, fin_l_p = explainer.pre_train(loaders.train, loaders.test)
         print(f"initial/final loss (only classification): {init_l_p}, {fin_l_p}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="after only-classification training")
@@ -65,33 +65,31 @@ def run_experiments(optional_args: List):
     elif args.training_mode == "in_turns":
         train_in_turns()
     elif args.training_mode == "one_critic_pass":
-        init_l_p, fin_l_p = explainer.pre_train(train_loader, test_loader)
+        init_l_p, fin_l_p = explainer.pre_train(loaders.train, loaders.test)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        fin_l_p = explainer.explanation_loss(critic_loader, n_current_batch=0)
+        fin_l_p = explainer.explanation_loss(loaders.critic)
         print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
 
 
-def set_up_experiments_combined(optional_args: List) -> Tuple[DataLoader[Any], DataLoader[Any], DataLoader[Any],
-                                                              SimpleArgumentParser, str, SummaryWriter]:
+def set_up_experiments_combined(optional_args: List) -> Tuple[Loaders, SimpleArgumentParser, str, SummaryWriter]:
     args, device, writer = main.setup(optional_args)
-    train_loader, test_loader, critic_loader = utils.load_data_from_args(args)
-    return train_loader, critic_loader, test_loader, args, device, writer
+    loaders = utils.load_data_from_args(args)
+    return loaders, args, device, writer
 
 
-def train_together(explainer: Explainer, critic_loader: DataLoader[Any], train_loader: DataLoader[Any],
-                   test_loader: DataLoader[Any], log_interval: int) -> Tuple[Loss, Loss]:
-    return explainer.train(train_loader, critic_loader, test_loader, log_interval)
+def train_together(explainer: Explainer, loaders: Loaders, log_interval: int) -> Tuple[Loss, Loss]:
+    return explainer.train(loaders.train, loaders.critic, loaders.test, log_interval)
 
 
 def train_only_critic(args: SimpleArgumentParser, device: str, explanations: List) -> Tuple[Loss, Loss]:
     critic = Critic(args, device)
 
-    *_, critic_loader = utils.load_data(n_training_samples=1, n_critic_samples=args.n_critic_batches * args.batch_size,
-                                        n_test_samples=1, batch_size=args.batch_size)
+    loaders = utils.load_data(n_training_samples=1, n_critic_samples=args.n_critic_batches * args.batch_size,
+                              n_test_samples=1, batch_size=args.batch_size)
 
-    initial_loss, end_of_training_loss = critic.train(critic_loader, explanations)
+    initial_loss, end_of_training_loss = critic.train(loaders.critic, explanations)
     return initial_loss, end_of_training_loss
 
 
