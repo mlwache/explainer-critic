@@ -16,7 +16,7 @@ Loss = float
 class Critic:
 
     def __init__(self, device: str, critic_loader: DataLoader[Any], writer: Optional[SummaryWriter],
-                 log_interval_critic: int):
+                 log_interval_critic: Optional[int]):
         self.classifier = Net().to(device)
         self.critic_loader = critic_loader
         self.writer = writer
@@ -57,7 +57,7 @@ class Critic:
         return loss.item()
 
     def _log_results(self, loss, n_current_batch):
-        if n_current_batch % self.log_interval_critic == 0:
+        if self.log_interval_critic and n_current_batch % self.log_interval_critic == 0:
             # if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches - 1:
 
             print(f'crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')

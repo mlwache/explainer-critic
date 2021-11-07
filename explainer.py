@@ -1,5 +1,5 @@
 import os
-from typing import Any, Tuple, List, Optional
+from typing import Any, Tuple, Optional
 
 import torch
 from captum.attr import InputXGradient
@@ -14,7 +14,7 @@ import global_vars
 from config import SimpleArgumentParser
 from critic import Critic
 from net import Net
-from utils import Logging, smooth_end_losses
+from utils import Logging
 from utils import colored, Loaders
 from visualization import ImageHandler
 
@@ -52,7 +52,7 @@ class Explainer:
         # currently not needed, as we don't use checkpoints to continue training, only for inference.
         self.classifier.train()
 
-    def save_state(self, path: str, epoch: int = -1, loss: float = -1.0):
+    def save_state(self, path: str, epoch: int, loss: float):
         if path:  # empty model path means we don't save the model
             # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
             if os.path.isfile(path):
@@ -66,109 +66,105 @@ class Explainer:
             }, path)
             print(colored(200, 100, 0, f"Saved model to {path}"))
 
-    def pre_train(self,
-                  learning_rate_start: float,
-                  learning_rate_step: float,
-                  constant_lr: bool,
-                  n_epochs: int,
-                  ) -> Tuple[Loss, Loss]:
+    def pretrain(self,
+                 learning_rate_start: float,
+                 learning_rate_step: float,
+                 constant_lr: bool,
+                 n_epochs: int,
+                 ) -> Tuple[Loss, Loss]:
         init_loss, end_loss = self.train(learning_rate_start, learning_rate_step, n_epochs, constant_lr,
-                                         explanation_loss_weight=0.0, critic_lr=0.0)
+                                         explanation_loss_weight=None, critic_lr=None)
         self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
         return init_loss, end_loss
-
-    def train_from_args(self, args: SimpleArgumentParser):
-        return self.train(args.learning_rate_start, args.learning_rate_step, args.n_epochs,
-                          args.constant_lr, args.explanation_loss_weight, args.learning_rate_critic)
 
     def train(self,
               learning_rate_start: float,
               learning_rate_step: float,
               n_epochs: int,
               constant_lr: bool,
-              explanation_loss_weight: float,
-              critic_lr: float
+              explanation_loss_weight: Optional[float],
+              critic_lr: Optional[float]
               ) -> Tuple[Loss, Loss]:
+
         self.classifier.train()
-
         self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=learning_rate_start)
-
-        loss_function_classification: Module = nn.CrossEntropyLoss()
-
-        losses: List[Loss] = []
+        classification_loss_fn: Module = nn.CrossEntropyLoss()
         scheduler = StepLR(self.optimizer, step_size=1, gamma=learning_rate_step)
+
+        start_loss_total: Loss = -1
+        end_loss_total: Loss = -1
         for current_epoch in range(n_epochs):
-            print(f"[epoch {current_epoch}]")
+            print(f"epoch {current_epoch}")
+
             for n_current_batch, (inputs, labels) in enumerate(self.loaders.train):
-                loss, classification_loss = self._process_batch(loss_function_classification, inputs,
-                                                                labels, explanation_loss_weight, critic_lr)
-                losses.append(loss)
+                self.optimizer.zero_grad()
 
-                if self.logging:
-                    if n_current_batch % self.logging.log_interval == 0:
-                        self.log_values(losses[-1], classification_loss, n_current_batch,
-                                        learning_rate=self.optimizer.param_groups[0]['lr'])
-                    if n_current_batch % self.logging.log_interval_accuracy == 0 and self.loaders.test:
-                        self.log_accuracy()
-                        # global_step = self.global_step(n_current_batch)
-                        ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
-                                                         global_step=global_vars.global_step)
-                    if not critic_lr:  # in pretraining mode
-                        progress_percentage: float = 100 * current_epoch / n_epochs
-                        print(f'{colored(0, 150, 100, "pretraining:")} epoch {current_epoch}, '
-                              f'batch {n_current_batch} of {n_epochs} epochs '
-                              f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
-                        global_vars.global_step += 1
+                outputs = self.classifier(inputs)
+                classification_loss = classification_loss_fn(outputs, labels)
 
-            self.save_state(self.model_path, epoch=n_epochs, loss=losses[-1])
+                if critic_lr is None:  # during pretraining
+                    total_loss = classification_loss
+                else:
+                    total_loss = classification_loss + \
+                                 explanation_loss_weight*self.explanation_loss(self.loaders.critic, critic_lr)
+
+                total_loss.backward()
+
+                if n_current_batch == 0:
+                    start_loss_total = total_loss.item()
+                end_loss_total = total_loss.item()
+
+                self.optimizer.step()
+                self.log_values(classification_loss.item(), critic_lr is None, current_epoch, n_current_batch,
+                                n_epochs, total_loss.item())
+
+            self.save_state(self.model_path, epoch=n_epochs, loss=end_loss_total)
             if not constant_lr:
                 scheduler.step()
+
         self.terminate_writer()
+        return start_loss_total, end_loss_total
 
-        return losses[0], smooth_end_losses(losses)
+    def explanation_loss(self, critic_loader: DataLoader, critic_lr: float) -> float:
+        critic = Critic(self.device, critic_loader, self.logging.writer if self.logging else None,
+                        self.logging.critic_log_interval if self.logging else None)
+        explanations = []
+        for inputs, labels in critic_loader:
+            explanations.append(self.rescaled_input_gradient(inputs, labels))
 
-    def _process_batch(self, loss_function: nn.Module, inputs: Tensor, labels: Tensor,
-                       explanation_loss_weight, critic_lr: float) -> Tuple[Loss, Loss]:
+        critic_end_of_training_loss: float
+        _, critic_end_of_training_loss = critic.train(explanations, critic_lr)
 
-        # inputs, labels = inputs.to(self.device), labels.to(self.device)
+        return critic_end_of_training_loss
 
-        self.optimizer.zero_grad()
-        # forward + backward + optimize
-        outputs = self.classifier(inputs)
-        loss_classification = loss_function(outputs, labels)
-        loss = self._add_explanation_loss(loss_classification, explanation_loss_weight, critic_lr)
-        loss.backward()
-        self.optimizer.step()
-
-        return loss.item(), loss_classification.item()
-
-    def log_values(self, loss, loss_classification, n_current_batch, learning_rate):
-
-        self.add_scalars_to_writer(loss, loss_classification, learning_rate)
-        self.print_statistics(loss, loss_classification, n_current_batch)
-
-    def _add_explanation_loss(self, loss_classification, explanation_loss_weight, critic_lr):
-        if critic_lr:
-            loss_explanation = self.explanation_loss(self.loaders.critic, critic_lr)
-            loss = loss_classification + explanation_loss_weight * loss_explanation
-        else:
-            loss = loss_classification
-        return loss
-
-    def terminate_writer(self):
+    def log_values(self, classification_loss_item: float, pretraining_mode: bool, current_epoch: int,
+                   n_current_batch: int, n_epochs: int, total_loss_item: float):
         if self.logging:
-            self.logging.writer.flush()
-            self.logging.writer.close()
+            if n_current_batch % self.logging.log_interval == 0:
+                self.log_training_details(total_loss_item, classification_loss_item, n_current_batch,
+                                          learning_rate=self.optimizer.param_groups[0]['lr'])
+            if n_current_batch % self.logging.log_interval_accuracy == 0 and self.loaders.test:
+                self.log_accuracy()
+                ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
+                                                 global_step=global_vars.global_step)
+            if pretraining_mode:
+                progress_percentage: float = 100 * current_epoch / n_epochs
+                print(f'{colored(0, 150, 100, "pretraining:")} epoch {current_epoch}, '
+                      f'batch {n_current_batch} of {n_epochs} epochs '
+                      f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
+                # in pretraining mode the global step is not increased in the critic, so it needs to be done here.
+                global_vars.global_step += 1
 
-    def print_statistics(self, loss, loss_classification, n_current_batch):
-        # print statistics
-        print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
-              f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
-              f' + {loss - loss_classification:.3f}(explanation)')
-        if self.rtpt:
-            self.rtpt.step(subtitle=f"loss={loss:2.2f}")
+    def train_from_args(self, args: SimpleArgumentParser):
+        return self.train(args.learning_rate_start, args.learning_rate_step, args.n_epochs,
+                          args.constant_lr, args.explanation_loss_weight, args.learning_rate_critic)
 
-    def add_scalars_to_writer(self, loss, loss_classification, learning_rate):
+    def pretrain_from_args(self, args: SimpleArgumentParser):
+        return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr, args.n_epochs)
+
+    def log_training_details(self, loss, loss_classification, n_current_batch, learning_rate):
+
+        # add scalars to writer
         global_step = global_vars.global_step
         if self.logging:
             self.logging.writer.add_scalar("Explainer_Training/Explanation", loss - loss_classification,
@@ -178,23 +174,20 @@ class Explainer:
             self.logging.writer.add_scalar("Explainer_Training/Total", loss, global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
-    def explanation_loss(self, critic_loader: DataLoader, critic_lr: float) -> float:
-        critic = Critic(self.device, critic_loader, self.logging.writer if self.logging else None,
-                        self.logging.critic_log_interval if self.logging else -1)
-        explanations = []
-        for inputs, labels in critic_loader:
-            # inputs, labels = inputs.to(self.device), labels.to(self.device)
-            explanations.append(self.rescaled_input_gradient(inputs, labels))
+        # print statistics
+        print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
+              f'Loss: {loss:.3f} = {loss_classification:.3f}(classification)'
+              f' + {loss - loss_classification:.3f}(explanation)')
+        if self.rtpt:
+            self.rtpt.step(subtitle=f"loss={loss:2.2f}")
 
-        critic_end_of_training_loss: float
-        _, critic_end_of_training_loss = critic.train(explanations, critic_lr)
-
-        return critic_end_of_training_loss
+    def terminate_writer(self):
+        if self.logging:
+            self.logging.writer.flush()
+            self.logging.writer.close()
 
     def input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
         assert input_images.size()[1:] == torch.Size([1, 28, 28])
-        # usually but not always: torch.Size([self.cfg.batch_size, 1, 28, 28])
-        # assert labels.size() == torch.Size([self.cfg.batch_size])
         input_x_gradient = InputXGradient(self.classifier.forward)
         input_images.requires_grad = True
         gradient_x_input_one_image: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
@@ -237,7 +230,6 @@ class Explainer:
     def log_accuracy(self):
         global_step = global_vars.global_step
         training_accuracy = self.compute_accuracy(self.loaders.train, self.logging.n_test_batches)
-        # test_accuracy = -0.1  # just for initializing. negative so that we will notice if it's unchanged
         test_accuracy = self.compute_accuracy(self.loaders.test, self.logging.n_test_batches)
         print(colored(0, 0, 200, f'accuracy training: {training_accuracy}, accuracy testing: {test_accuracy:.3f}'))
         if self.logging:

@@ -39,7 +39,7 @@ def test_explainer_makes_progress_with_only_classification(args):
                               batch_size=args.batch_size)
     explainer = Explainer(utils.get_device(), loaders, logging=None, test_batch_to_visualize=None, rtpt=None,
                           model_path="")
-    initial_loss, end_of_training_loss = explainer.pre_train(args.pretrain_learning_rate, args.learning_rate_step,
-                                                             constant_lr=False, n_epochs=1)
+    initial_loss, end_of_training_loss = explainer.pretrain(args.pretrain_learning_rate, args.learning_rate_step,
+                                                            constant_lr=False, n_epochs=1)
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1

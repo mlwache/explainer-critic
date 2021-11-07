@@ -17,7 +17,6 @@ def run_evaluation_experiments():
     explainer, test_loader, device = set_up_evaluation_experiments(batch_size=100)
 
     inputs, labels = iter(test_loader).__next__()
-    inputs, labels = inputs.to(device), labels.to(device)
 
     print("prediction: ", explainer.predict(inputs))
     print("ground truth: ", labels)

@@ -31,8 +31,7 @@ def run_experiments(overriding_args: List):
 
     elif args.training_mode == "pretrain_from_scratch":
         print("Pre-train the explainer first...")
-        init_l_p, fin_l_p = explainer.pre_train(args.pretrain_learning_rate, args.learning_rate_step,
-                                                args.constant_lr, args.n_pretraining_epochs)
+        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
         print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         init_l, fin_l = explainer.train_from_args(args)
@@ -55,8 +54,7 @@ def run_experiments(overriding_args: List):
         print(f"initial/final loss (only critic): {init_l}, {fin_l}")
 
     elif args.training_mode == "only_classification":
-        init_l_p, fin_l_p = explainer.pre_train(args.pretrain_learning_rate, args.learning_rate_step,
-                                                args.constant_lr, args.n_pretraining_epochs)
+        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
         print(f"initial/final loss (only classification): {init_l_p}, {fin_l_p}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="after only-classification training")
@@ -66,8 +64,7 @@ def run_experiments(overriding_args: List):
     elif args.training_mode == "in_turns":
         train_in_turns()
     elif args.training_mode == "one_critic_pass":
-        init_l_p, fin_l_p = explainer.pre_train(args.pretrain_learning_rate, args.learning_rate_step,
-                                                args.constant_lr, args.n_pretraining_epochs)
+        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         fin_l_p = explainer.explanation_loss(loaders.critic, args.learning_rate_critic)
         print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
