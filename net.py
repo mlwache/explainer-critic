@@ -6,9 +6,8 @@ import torch
 
 class Net(nn.Module):
     # Use the same architecture as https://github.com/pytorch/examples/blob/master/mnist/main.py
-    def __init__(self, cfg, accepts_additional_explanations: bool = False):
+    def __init__(self, accepts_additional_explanations: bool = False):
         super().__init__()
-        self.cfg = cfg
         self.accepts_additional_explanations = accepts_additional_explanations
         # noinspection PyTypeChecker
         self.conv1 = nn.Conv2d(1, 32, 3, 1)
@@ -40,3 +39,7 @@ class Net(nn.Module):
         x = self.fc2(x)
         output = f.log_softmax(x, dim=1)
         return output
+
+    @property
+    def n_parameters(self):
+        return sum(p.numel() for p in self.parameters())

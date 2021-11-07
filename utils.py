@@ -3,11 +3,13 @@ import os
 import random
 from dataclasses import dataclass
 from datetime import datetime
+from statistics import mean
 from typing import Tuple, Any, Optional, List
 
 import numpy as np
 import torch.cuda
 import torch.multiprocessing
+from rtpt import RTPT
 from torch import Tensor
 from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
 from torch.utils.tensorboard import SummaryWriter
@@ -15,7 +17,6 @@ from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
 from visualization import ImageHandler
-import global_vars
 
 
 @dataclass
@@ -24,6 +25,17 @@ class Loaders:
     critic: Optional[DataLoader[Any]]
     test: Optional[DataLoader[Any]]
     visualization: Optional[DataLoader[Any]]
+
+
+@dataclass
+class Logging:
+    """Combines the variables that are only used for logging"""
+    writer: SummaryWriter
+    run_name: str
+    log_interval: int
+    log_interval_accuracy: int
+    n_test_batches: int
+    critic_log_interval: int
 
 
 def load_data_from_args(args: SimpleArgumentParser) -> Loaders:
@@ -53,7 +65,8 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     test_set = test_set.dataset
     # for the visualization get 50 samples of the dataset, 5 for each label
     visualization_sets = []
-    for label in global_vars.CLASSES:
+    for label in range(10):
+        # noinspection PyTypeChecker
         visualization_sets.append(Subset(test_set, torch.where(test_set.targets == label)[0][:4]))
     visualization_set = ConcatDataset(visualization_sets)
     n_vis_samples = visualization_set.cumulative_sizes[-1]
@@ -131,6 +144,10 @@ def set_seed(seed=42):
 
 class FastMNIST(MNIST):
     # code snippet from https://github.com/y0ast/pytorch-snippets/tree/main/fast_mnist
+
+    MEAN_MNIST: float = 0.1307
+    STD_DEV_MNIST: float = 0.3081
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -138,7 +155,7 @@ class FastMNIST(MNIST):
         self.data = self.data.unsqueeze(1).float().div(255)
 
         # Normalize it with the usual MNIST mean and std
-        self.data = self.data.sub_(global_vars.MEAN_MNIST).div_(global_vars.STD_DEV_MNIST)
+        self.data = self.data.sub_(self.MEAN_MNIST).div_(self.STD_DEV_MNIST)
 
         # Put both data and targets on GPU in advance
         device = get_device()
@@ -157,27 +174,45 @@ class FastMNIST(MNIST):
         return img, target
 
 
-def setup(optional_args: List, eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, SummaryWriter]:
+def setup(overriding_args: List, eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging, Optional[RTPT]]:
     args = SimpleArgumentParser()
-    if optional_args:
-        args.parse_args(optional_args)
+    if overriding_args:
+        args.parse_args(overriding_args)
     else:
         args.parse_args()
 
     set_seed()
-
     set_sharing_strategy()
+    device = get_device()
 
-    if not (args.logging_disabled or eval_mode):
+    if args.rtpt_enabled:
+        rtpt = RTPT(name_initials='mwache',
+                    experiment_name='explainer-critic',
+                    max_iterations=args.n_iterations)
+    else:
+        rtpt = None
+
+    if args.logging_disabled or eval_mode:
+        logging = None
+        writer = None
+    else:
         log_dir = f"./runs/{config_string(args)}"
         write_config_to_log(args, log_dir)
         writer = SummaryWriter(log_dir)
-    else:
-        writer = None
+        logging = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy, args.n_test_batches,
+                          args.log_interval_critic)
 
-    device = get_device()
-
+    # image_handler = ImageHandler(device, writer) # TODO: make ImageHandler a singleton
     ImageHandler.device, ImageHandler.writer = device, writer
-    ImageHandler.MEAN_MNIST, ImageHandler.STD_DEV_MNIST = global_vars.MEAN_MNIST, global_vars.STD_DEV_MNIST
 
-    return args, device, writer
+    return args, device, logging, rtpt
+
+
+def smooth_end_losses(losses: List[float]) -> float:
+    """average the last quarter of the losses"""
+    last_few_losses = losses[-len(losses) // 4:len(losses)]
+    if last_few_losses:
+        return mean(last_few_losses)
+    else:
+        print("not enough losses to smooth")
+        return losses[-1]

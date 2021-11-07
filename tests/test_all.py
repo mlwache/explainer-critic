@@ -26,7 +26,8 @@ def test_experiments_dont_crash():
 def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
     n_classes = 10
     args.n_critic_batches = 50
-    initial_loss, end_of_training_loss = train_only_critic(args, device=utils.get_device(), explanations=[])
+    initial_loss, end_of_training_loss = train_only_critic(utils.get_device(), args.n_critic_batches, args.batch_size,
+                                                           args.learning_rate_critic, explanations=[])
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1
 
@@ -36,7 +37,9 @@ def test_explainer_makes_progress_with_only_classification(args):
     n_training_samples = 20 * args.batch_size  # 20 batches
     loaders = utils.load_data(n_training_samples, n_critic_samples=0, n_test_samples=0,
                               batch_size=args.batch_size)
-    explainer = Explainer(args, device=utils.get_device())
-    initial_loss, end_of_training_loss = explainer.pre_train(loaders.train, test_loader=None, n_epochs=1)
+    explainer = Explainer(utils.get_device(), loaders, logging=None, test_batch_to_visualize=None, rtpt=None,
+                          model_path="")
+    initial_loss, end_of_training_loss = explainer.pre_train(args.pretrain_learning_rate, args.learning_rate_step,
+                                                             constant_lr=False, n_epochs=1)
     assert abs(initial_loss - np.log(n_classes)) < 0.1
     assert initial_loss - end_of_training_loss > 0.1

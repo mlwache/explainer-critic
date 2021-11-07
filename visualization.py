@@ -13,8 +13,8 @@ from torchvision.transforms import functional
 
 class ImageHandler:
 
-    MEAN_MNIST: float
-    STD_DEV_MNIST: float
+    MEAN_MNIST: float = 0.1307
+    STD_DEV_MNIST: float = 0.3081
 
     device: str
     writer: Optional[SummaryWriter]

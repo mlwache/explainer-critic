@@ -24,9 +24,9 @@ def run_evaluation_experiments():
 
 
 def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoader[Any], str]:
-    cfg, device, _ = utils.setup([], eval_mode=True)
+    cfg, device, *_ = utils.setup([], eval_mode=True)
 
-    explainer = Explainer(cfg, device, test_batch_for_visualization=None, writer=None)
+    explainer = Explainer(device, loaders=None, logging=None, test_batch_to_visualize=None, rtpt=None, model_path="")
 
     model_path = get_model_path(cfg)
     explainer.load_state(f"models/{model_path}")
