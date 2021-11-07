@@ -160,7 +160,8 @@ class Explainer:
                           args.constant_lr, args.explanation_loss_weight, args.learning_rate_critic)
 
     def pretrain_from_args(self, args: SimpleArgumentParser):
-        return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr, args.n_epochs)
+        return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr,
+                             args.n_pretraining_epochs)
 
     def log_training_details(self, loss, loss_classification, n_current_batch, learning_rate):
 
