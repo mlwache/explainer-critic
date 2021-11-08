@@ -61,13 +61,13 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
 
     # get a randomly split set for testing, and an ordered subset for the visualization
     test_split = [n_test_samples, len(full_test_set) - n_test_samples]
+
+    test_set: Subset
     test_set, _ = random_split(full_test_set, test_split)
-    test_set = test_set.dataset
     # for the visualization get 50 samples of the dataset, 5 for each label
     visualization_sets = []
     for label in range(10):
-        # noinspection PyTypeChecker
-        visualization_sets.append(Subset(test_set, torch.where(test_set.targets == label)[0][:4]))
+        visualization_sets.append(Subset(full_test_set, torch.where(full_test_set.targets == label)[0][:4]))
     visualization_set = ConcatDataset(visualization_sets)
     n_vis_samples = visualization_set.cumulative_sizes[-1]
 
@@ -174,9 +174,9 @@ class FastMNIST(MNIST):
         return img, target
 
 
-def setup(overriding_args: List, eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging, Optional[RTPT]]:
+def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging, Optional[RTPT]]:
     args = SimpleArgumentParser()
-    if overriding_args:
+    if overriding_args is not None:
         args.parse_args(overriding_args)
     else:
         args.parse_args()

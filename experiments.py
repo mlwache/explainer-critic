@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 
 import global_vars
 import utils
@@ -9,7 +9,7 @@ from visualization import ImageHandler
 Loss = float
 
 
-def run_experiments(overriding_args: List):
+def run_experiments(overriding_args: Optional[List] = None):
     global_vars.global_step = 0
 
     print("Setting up experiments...")
@@ -88,4 +88,4 @@ def train_in_turns():
 
 
 if __name__ == '__main__':
-    run_experiments([])
+    run_experiments()
