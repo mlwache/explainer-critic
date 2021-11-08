@@ -1,3 +1,5 @@
+from typing import Literal
+
 from tap import Tap
 
 
@@ -6,7 +8,7 @@ def _colored(r, g, b, text):
 
 
 class SimpleArgumentParser(Tap):
-    training_mode: str = "pretrained"
+    training_mode: str = "pretrain_from_scratch"
     logging_disabled: bool = False
     constant_lr: bool = False
 
@@ -17,6 +19,7 @@ class SimpleArgumentParser(Tap):
     learning_rate_critic: float = 0.2
     pretrain_learning_rate: float = 1.0
     explanation_loss_weight: float = 1.0
+    optimizer: 'Literal["adadelta", "adam"]' = 'adadelta'
 
     # Dataset sizes
     n_training_batches: int = 400

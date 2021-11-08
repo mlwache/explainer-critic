@@ -24,20 +24,23 @@ Loss = float
 class Explainer:
     classifier: Net
     optimizer: Optimizer
-    test_batch_for_visualization: Optional[Tuple[Tensor, Tensor]]
-    logging: Optional[Logging]  # None if logging is disabled
-    loaders: Optional[Loaders]  # None if the explainer is only loaded from checkpoint, and not trained
-    model_path: str
-    device: str
-    rtpt: Optional[RTPT]
 
-    def __init__(self, device: str, loaders: Optional[Loaders], logging: Optional[Logging],
+    device: str
+    loaders: Optional[Loaders]  # None if the explainer is only loaded from checkpoint, and not trained
+    optimizer_type: Optional[str]
+    logging: Optional[Logging]  # None if logging is disabled
+    test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]]
+    rtpt: Optional[RTPT]
+    model_path: str
+
+    def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str], logging: Optional[Logging],
                  test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]], rtpt: Optional[RTPT],
                  model_path: str):
         self.device = device
-        self.logging = logging
         self.loaders = loaders
-        self.test_batch_for_visualization = test_batch_to_visualize
+        self.optimizer_type = optimizer_type
+        self.logging = logging
+        self.test_batch_to_visualize = test_batch_to_visualize
         self.rtpt = rtpt
         self.model_path = model_path
 
@@ -53,7 +56,7 @@ class Explainer:
         self.classifier.train()
 
     def save_state(self, path: str, epoch: int, loss: float):
-        if path:  # empty model path means we don't save the model
+        if path and self.logging:  # empty model path means we don't save the model
             # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
             if os.path.isfile(path):
                 os.replace(path, path + "_previous.pt")
@@ -86,8 +89,11 @@ class Explainer:
               critic_lr: Optional[float]
               ) -> Tuple[Loss, Loss]:
 
+        if self.loaders is None or self.optimizer_type is None:
+            raise ValueError("Can't train, because the explainer is in evaluation mode.")
+
         self.classifier.train()
-        self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=learning_rate_start)
+        self.initialize_optimizer(learning_rate_start)
         classification_loss_fn: Module = nn.CrossEntropyLoss()
         scheduler = StepLR(self.optimizer, step_size=1, gamma=learning_rate_step)
 
@@ -145,7 +151,7 @@ class Explainer:
                                           learning_rate=self.optimizer.param_groups[0]['lr'])
             if n_current_batch % self.logging.log_interval_accuracy == 0 and self.loaders.test:
                 self.log_accuracy()
-                ImageHandler.add_gradient_images(self.test_batch_for_visualization, self, "2: during training",
+                ImageHandler.add_gradient_images(self.test_batch_to_visualize, self, "2: during training",
                                                  global_step=global_vars.global_step)
             if pretraining_mode:
                 progress_percentage: float = 100 * current_epoch / n_epochs
@@ -238,3 +244,9 @@ class Explainer:
                                            global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Test_Accuracy", test_accuracy,
                                            global_step=global_step)
+
+    def initialize_optimizer(self, learning_rate):
+        if self.optimizer_type == "adadelta":
+            self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=learning_rate)
+        elif self.optimizer_type == "adam":
+            self.optimizer = optim.Adam(self.classifier.parameters(),lr=learning_rate)

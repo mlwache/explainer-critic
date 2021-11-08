@@ -37,8 +37,8 @@ def test_explainer_makes_progress_with_only_classification(args):
     n_training_samples = 20 * args.batch_size  # 20 batches
     loaders = utils.load_data(n_training_samples, n_critic_samples=0, n_test_samples=0,
                               batch_size=args.batch_size)
-    explainer = Explainer(utils.get_device(), loaders, logging=None, test_batch_to_visualize=None, rtpt=None,
-                          model_path="")
+    explainer = Explainer(utils.get_device(), loaders, args.optimizer, logging=None, test_batch_to_visualize=None,
+                          rtpt=None, model_path="")
     initial_loss, end_of_training_loss = explainer.pretrain(args.pretrain_learning_rate, args.learning_rate_step,
                                                             constant_lr=False, n_epochs=1)
     assert abs(initial_loss - np.log(n_classes)) < 0.1

@@ -17,7 +17,7 @@ def run_experiments(overriding_args: List):
     loaders = utils.load_data_from_args(args)
 
     test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
-    explainer = Explainer(device, loaders, logging, test_batch_to_visualize, rtpt,
+    explainer = Explainer(device, loaders, args.optimizer, logging, test_batch_to_visualize, rtpt,
                           model_path=f"models/{utils.config_string(args)}.pt")
     ImageHandler.add_input_images(test_batch_to_visualize[0])  # needs only the images, not the labels
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
