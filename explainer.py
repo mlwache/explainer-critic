@@ -250,3 +250,5 @@ class Explainer:
             self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=learning_rate)
         elif self.optimizer_type == "adam":
             self.optimizer = optim.Adam(self.classifier.parameters(),lr=learning_rate)
+        else:
+            raise ValueError(f"optimizer '{self.optimizer_type}' invalid")

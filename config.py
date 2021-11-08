@@ -1,4 +1,3 @@
-from typing import Literal
 
 from tap import Tap
 
@@ -19,7 +18,7 @@ class SimpleArgumentParser(Tap):
     learning_rate_critic: float = 0.2
     pretrain_learning_rate: float = 1.0
     explanation_loss_weight: float = 1.0
-    optimizer: 'Literal["adadelta", "adam"]' = 'adadelta'
+    optimizer: str = 'adadelta'
 
     # Dataset sizes
     n_training_batches: int = 400
