@@ -56,7 +56,7 @@ class Explainer:
         self.classifier.train()
 
     def save_state(self, path: str, epoch: int, loss: float):
-        if path and self.logging:  # empty model path means we don't save the model
+        if path and self.logging and self.device != 'cpu':  # empty model path means we don't save the model
             # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
             if os.path.isfile(path):
                 os.replace(path, path + "_previous.pt")
