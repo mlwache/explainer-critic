@@ -44,11 +44,9 @@ class Critic:
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, optimizer) -> Loss:
-        # inputs, labels = inputs.to(self.device), labels.to(self.device)
 
         optimizer.zero_grad()
 
-        # forward + backward + optimize
         if explanations:
             input_explanation_product: Tensor = inputs * explanations[n_current_batch]
         else:

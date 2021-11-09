@@ -33,9 +33,9 @@ class Explainer:
     rtpt: Optional[RTPT]
     model_path: str
 
-    def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str], logging: Optional[Logging],
-                 test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]], rtpt: Optional[RTPT],
-                 model_path: str):
+    def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str],
+                 logging: Optional[Logging], test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
+                 rtpt: Optional[RTPT], model_path: str):
         self.device = device
         self.loaders = loaders
         self.optimizer_type = optimizer_type
@@ -110,11 +110,23 @@ class Explainer:
                 classification_loss = classification_loss_fn(outputs, labels)
 
                 if critic_lr is not None:  # if we are not in pretraining
+                    # weigh classification loss less relative to the explanation loss with the explanation_loss_weight
+                    weighed_classification_loss = classification_loss/explanation_loss_weight
+
                     # this will add to the gradients of the explainer classifier's weights
                     end_critic_loss = self.train_critic_on_explanations(critic_lr)
 
-                # additionally, add the gradients of the classification loss
-                classification_loss.backward()
+                    # however, as the gradients of the critic loss are added in each critic step,
+                    # they need to be divided by the length of the critic set in order to be in the same
+                    # order of magnitude as the classification loss
+                    for x in self.classifier.parameters():
+                        x.grad *= 1 / len(self.loaders.critic)
+
+                    # additionally, add the gradients of the classification loss
+                    weighed_classification_loss.backward()
+                else:
+                    classification_loss.backward()
+
 
                 if n_current_batch == 0:
                     start_classification_loss = classification_loss.item()
@@ -178,7 +190,8 @@ class Explainer:
                                            global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Classification", loss_classification,
                                            global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Total", end_critic_loss + loss_classification, global_step=global_step)
+            self.logging.writer.add_scalar("Explainer_Training/Total", end_critic_loss + loss_classification,
+                                           global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
         # print statistics
@@ -249,6 +262,6 @@ class Explainer:
         if self.optimizer_type == "adadelta":
             self.optimizer = optim.Adadelta(self.classifier.parameters(), lr=learning_rate)
         elif self.optimizer_type == "adam":
-            self.optimizer = optim.Adam(self.classifier.parameters(),lr=learning_rate)
+            self.optimizer = optim.Adam(self.classifier.parameters(), lr=learning_rate)
         else:
             raise ValueError(f"optimizer '{self.optimizer_type}' invalid")
