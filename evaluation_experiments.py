@@ -1,9 +1,8 @@
 import os
 from typing import Any, Tuple
 
-import torchvision
+import streamlit as st
 from torch.utils.data import DataLoader
-from torchvision import transforms as transforms
 
 import utils
 from config import SimpleArgumentParser
@@ -14,30 +13,43 @@ def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    explainer, test_loader, device = set_up_evaluation_experiments(batch_size=100)
+    explainer, test_loader, device = set_up_evaluation_experiments()
 
     inputs, labels = iter(test_loader).__next__()
 
-    print("prediction: ", explainer.predict(inputs))
-    print("ground truth: ", labels)
+    st.markdown(f"""
+    ### Prediction: 
+    ```
+    {explainer.predict(inputs)}
+    ```""")
+    st.markdown(f"""
+    ### ground truth: 
+    ```
+    {labels} 
+    ```""")
+
+    st.selectbox(label="choose an explanation type", options=["input x grad", "integrated_grad"],
+                 on_change=choose_explanation_type)
 
 
-def set_up_evaluation_experiments(batch_size: int) -> Tuple[Explainer, DataLoader[Any], str]:
+def choose_explanation_type():
+    pass
+
+
+def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], str]:
+    # device: str
+    # cfg: SimpleArgumentParser
     cfg, device, *_ = utils.setup([], eval_mode=True)
 
-    explainer = Explainer(device, loaders=None, logging=None, test_batch_to_visualize=None, rtpt=None, model_path="")
+    explainer = Explainer(device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
+                          rtpt=None, model_path="")
 
     model_path = get_model_path(cfg)
     explainer.load_state(f"models/{model_path}")
     explainer.classifier.eval()
 
     # get the full 10000 MNIST test samples
-    transform_mnist = transforms.Compose(
-        [transforms.ToTensor(),
-         torchvision.transforms.Normalize((cfg.MEAN_MNIST,), (cfg.STD_DEV_MNIST,))
-         ])
-    test_set = torchvision.datasets.MNIST('./data', train=False, download=True, transform=transform_mnist)
-    test_loader = DataLoader(test_set, batch_size)
+    test_loader = utils.load_data(1, 1, 10000, batch_size=100).test
 
     return explainer, test_loader, device
 
@@ -50,7 +62,12 @@ def get_model_path(cfg: SimpleArgumentParser):
     for model_name in os.listdir("models"):
         if model_name.startswith(cfg_string):
             return model_name
-    raise ValueError(f"no model with name {cfg_string}_<date>.pt found.")
+    # otherwise fall back to pretrained model
+    pretrained_path = 'pretrained_model.pt'
+    if pretrained_path in os.listdir("models"):
+        return pretrained_path
+
+    raise ValueError(f"no model with name {cfg_string}_<date>.pt found, nor pretrained model.")
 
 
 if __name__ == '__main__':

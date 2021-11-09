@@ -49,7 +49,12 @@ class Explainer:
             self.rtpt.start()
 
     def load_state(self, path: str):
-        checkpoint: dict = torch.load(path)
+        if self.device == 'cuda':
+            checkpoint: dict = torch.load(path)
+        elif self.device == 'cpu':
+            checkpoint: dict = torch.load(path, map_location=torch.device('cpu'))
+        else:
+            raise NotImplementedError(f"dealing with device {self.device} not implemented")
         self.classifier.load_state_dict(checkpoint['model_state_dict'])
         # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # currently not needed, as we don't use checkpoints to continue training, only for inference.
@@ -136,7 +141,7 @@ class Explainer:
                                 mean_critic_loss=mean_critic_loss,
                                 explanation_loss_weight=explanation_loss_weight)
 
-            if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving 
+            if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving
                 self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
             if not constant_lr:
                 scheduler.step()
