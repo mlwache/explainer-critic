@@ -8,7 +8,6 @@ from torch.utils.tensorboard import SummaryWriter
 
 import global_vars
 from net import Net
-import utils
 
 Loss = float
 
@@ -29,14 +28,19 @@ class Critic:
         critic_loss: Module = nn.CrossEntropyLoss()
         optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=critic_learning_rate)
 
-        losses: List[float] = []
+        # losses: List[float] = []
+        loss: Optional[float] = None
+        start_loss_item: Optional[float] = None
+
         for n_current_batch, (inputs, labels) in enumerate(self.critic_loader):
-            losses.append(self._process_batch(critic_loss, explanations,
-                                              inputs, labels, n_current_batch,
-                                              optimizer))
+            loss = self._process_batch(critic_loss, explanations,
+                                       inputs, labels, n_current_batch,
+                                       optimizer)
+            if n_current_batch == 0:
+                start_loss_item = loss
             global_vars.global_step += 1
 
-        return losses[0], utils.smooth_end_losses(losses)
+        return start_loss_item, loss
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, optimizer) -> Loss:
@@ -51,7 +55,7 @@ class Critic:
             input_explanation_product = inputs
         outputs = self.classifier(input_explanation_product)
         loss = loss_function(outputs, labels)
-        loss.backward()  # or retain_graph=True ? TODO: clarify computation graph
+        loss.backward()
         optimizer.step()
         self._log_results(loss, n_current_batch)
         return loss.item()
