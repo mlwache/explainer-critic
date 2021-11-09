@@ -99,7 +99,7 @@ class Explainer:
 
         start_classification_loss: Optional[Loss] = None
         end_classification_loss: Optional[Loss] = None
-        end_critic_loss: Loss = 0
+        mean_critic_loss: Loss = 0
         for current_epoch in range(n_epochs):
             print(f"epoch {current_epoch}")
 
@@ -114,7 +114,7 @@ class Explainer:
                     weighed_classification_loss = classification_loss/explanation_loss_weight
 
                     # this will add to the gradients of the explainer classifier's weights
-                    end_critic_loss = self.train_critic_on_explanations(critic_lr)
+                    mean_critic_loss = self.train_critic_on_explanations(critic_lr)
 
                     # however, as the gradients of the critic loss are added in each critic step,
                     # they need to be divided by the length of the critic set in order to be in the same
@@ -127,14 +127,18 @@ class Explainer:
                 else:
                     classification_loss.backward()
 
-
                 if n_current_batch == 0:
                     start_classification_loss = classification_loss.item()
                 end_classification_loss = classification_loss.item()
 
                 self.optimizer.step()
-                self.log_values(classification_loss.item(), critic_lr is None, current_epoch, n_current_batch,
-                                n_epochs, end_critic_loss)
+                self.log_values(classification_loss=classification_loss.item(),
+                                pretraining_mode=critic_lr is None,
+                                current_epoch=current_epoch,
+                                n_current_batch=n_current_batch,
+                                n_epochs=n_epochs,
+                                mean_critic_loss=mean_critic_loss,
+                                explanation_loss_weight=explanation_loss_weight)
 
             self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
             if not constant_lr:
@@ -150,16 +154,19 @@ class Explainer:
         for inputs, labels in self.loaders.critic:
             explanations.append(self.rescaled_input_gradient(inputs, labels))
 
-        critic_end_of_training_loss: float
-        _, critic_end_of_training_loss = critic.train(explanations, critic_lr)
+        critic_mean_loss: float
+        *_, critic_mean_loss = critic.train(explanations, critic_lr)
 
-        return critic_end_of_training_loss
+        return critic_mean_loss
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
-                   n_current_batch: int, n_epochs: int, end_critic_loss: float):
+                   n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_weight: float):
         if self.logging:
             if n_current_batch % self.logging.log_interval == 0:
-                self.log_training_details(end_critic_loss, classification_loss, n_current_batch,
+                self.log_training_details(explanation_loss_weight=explanation_loss_weight,
+                                          mean_critic_loss=mean_critic_loss,
+                                          classification_loss=classification_loss,
+                                          n_current_batch=n_current_batch,
                                           learning_rate=self.optimizer.param_groups[0]['lr'])
             if n_current_batch % self.logging.log_interval_accuracy == 0 and self.loaders.test:
                 self.log_accuracy()
@@ -181,25 +188,31 @@ class Explainer:
         return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr,
                              args.n_pretraining_epochs)
 
-    def log_training_details(self, end_critic_loss, loss_classification, n_current_batch, learning_rate):
+    def log_training_details(self, explanation_loss_weight, mean_critic_loss, classification_loss, n_current_batch,
+                             learning_rate):
 
         # add scalars to writer
         global_step = global_vars.global_step
         if self.logging:
-            self.logging.writer.add_scalar("Explainer_Training/Explanation", end_critic_loss,
+            if explanation_loss_weight:
+                total_loss = mean_critic_loss + classification_loss / explanation_loss_weight
+            else:
+                total_loss = classification_loss
+            self.logging.writer.add_scalar("Explainer_Training/Explanation", mean_critic_loss,
                                            global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Classification", loss_classification,
+            self.logging.writer.add_scalar("Explainer_Training/Classification", classification_loss,
                                            global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Total", end_critic_loss + loss_classification,
+            self.logging.writer.add_scalar("Explainer_Training/Total", total_loss,
                                            global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
-        # print statistics
-        print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
-              f'Loss: {end_critic_loss:.3f} = {loss_classification:.3f}(classification)'
-              f' + {end_critic_loss - loss_classification:.3f}(explanation)')
-        if self.rtpt:
-            self.rtpt.step(subtitle=f"loss={end_critic_loss:2.2f}")
+            # print statistics
+            print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
+                  f'Loss: {total_loss:.3f} ='
+                  f' {classification_loss:.3f}(classification)/{explanation_loss_weight}(lambda)'
+                  f' + {mean_critic_loss:.3f}(explanation)')
+            if self.rtpt:
+                self.rtpt.step(subtitle=f"loss={mean_critic_loss:2.2f}")
 
     def terminate_writer(self):
         if self.logging:

@@ -1,3 +1,4 @@
+from statistics import mean
 from typing import Any, List, Tuple, Optional
 
 from torch import Tensor, nn, optim
@@ -21,26 +22,22 @@ class Critic:
         self.writer = writer
         self.log_interval_critic = log_interval_critic
 
-    def train(self, explanations: List[Tensor], critic_learning_rate: float) -> Tuple[float, float]:
+    def train(self, explanations: List[Tensor], critic_learning_rate: float) -> Tuple[float, float, float]:
 
         self.classifier.train()
 
         critic_loss: Module = nn.CrossEntropyLoss()
         optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=critic_learning_rate)
 
-        # losses: List[float] = []
-        loss: Optional[float] = None
-        start_loss_item: Optional[float] = None
+        losses: List[float] = []
 
         for n_current_batch, (inputs, labels) in enumerate(self.critic_loader):
-            loss = self._process_batch(critic_loss, explanations,
-                                       inputs, labels, n_current_batch,
-                                       optimizer)
-            if n_current_batch == 0:
-                start_loss_item = loss
+            losses.append(self._process_batch(critic_loss, explanations,
+                                              inputs, labels, n_current_batch,
+                                              optimizer))
             global_vars.global_step += 1
 
-        return start_loss_item, loss
+        return losses[0], losses[-1], mean(losses)
 
     def _process_batch(self, loss_function: nn.Module, explanations: List[Tensor], inputs: Tensor, labels: Tensor,
                        n_current_batch: int, optimizer) -> Loss:

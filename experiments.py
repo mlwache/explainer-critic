@@ -67,7 +67,7 @@ def run_experiments(overriding_args: Optional[List] = None):
         init_l_p, fin_l_p = explainer.pretrain_from_args(args)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         fin_l_p = explainer.train_critic_on_explanations(args.learning_rate_critic)
-        print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
+        print(f"initial/mean loss (one critic pass): {init_l_p}, {fin_l_p}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
     print(utils.colored(0, 200, 0, "Finished!"))
@@ -79,7 +79,7 @@ def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning
                                     n_test_samples=1, batch_size=batch_size).critic
     critic = Critic(device, critic_loader, writer=None, log_interval_critic=1)
 
-    initial_loss, end_of_training_loss = critic.train(explanations, critic_learning_rate)
+    initial_loss, end_of_training_loss, _ = critic.train(explanations, critic_learning_rate)
     return initial_loss, end_of_training_loss
 
 
