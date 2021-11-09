@@ -66,7 +66,7 @@ def run_experiments(overriding_args: Optional[List] = None):
     elif args.training_mode == "one_critic_pass":
         init_l_p, fin_l_p = explainer.pretrain_from_args(args)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        fin_l_p = explainer.explanation_loss(loaders.critic, args.learning_rate_critic)
+        fin_l_p = explainer.train_critic_on_explanations(args.learning_rate_critic)
         print(f"initial/final loss (one critic pass): {init_l_p}, {fin_l_p}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
