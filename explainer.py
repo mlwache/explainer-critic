@@ -56,7 +56,7 @@ class Explainer:
         self.classifier.train()
 
     def save_state(self, path: str, epoch: int, loss: float):
-        if path and self.logging and self.device != 'cpu':  # empty model path means we don't save the model
+        if path and self.logging:  # empty model path means we don't save the model
             # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
             if os.path.isfile(path):
                 os.replace(path, path + "_previous.pt")
@@ -110,22 +110,18 @@ class Explainer:
                 classification_loss = classification_loss_fn(outputs, labels)
 
                 if critic_lr is not None:  # if we are not in pretraining
-                    # weigh classification loss less relative to the explanation loss with the explanation_loss_weight
-                    weighed_classification_loss = classification_loss/explanation_loss_weight
 
                     # this will add to the gradients of the explainer classifier's weights
                     mean_critic_loss = self.train_critic_on_explanations(critic_lr)
 
                     # however, as the gradients of the critic loss are added in each critic step,
-                    # they need to be divided by the length of the critic set in order to be in the same
-                    # order of magnitude as the classification loss
+                    # they are divided by the length of the critic set so the length of the critic set does
+                    # not influence the experiments by modulating the number of added gradients.
                     for x in self.classifier.parameters():
-                        x.grad *= 1 / len(self.loaders.critic)
+                        x.grad *= explanation_loss_weight / len(self.loaders.critic)
 
-                    # additionally, add the gradients of the classification loss
-                    weighed_classification_loss.backward()
-                else:
-                    classification_loss.backward()
+                # additionally, add the gradients of the classification loss
+                classification_loss.backward()
 
                 if n_current_batch == 0:
                     start_classification_loss = classification_loss.item()
@@ -140,7 +136,8 @@ class Explainer:
                                 mean_critic_loss=mean_critic_loss,
                                 explanation_loss_weight=explanation_loss_weight)
 
-            self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
+            if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving 
+                self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
             if not constant_lr:
                 scheduler.step()
 

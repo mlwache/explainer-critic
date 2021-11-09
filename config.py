@@ -1,4 +1,3 @@
-
 from tap import Tap
 
 
@@ -17,7 +16,8 @@ class SimpleArgumentParser(Tap):
     learning_rate_step: float = 0.7
     learning_rate_critic: float = 0.2
     pretrain_learning_rate: float = 1.0
-    explanation_loss_weight: float = 1.0
+    explanation_loss_weight: float = 100  # high by default,
+    # as the critic loss has a longer way to the weights, and therefore less influence.
     optimizer: str = 'adadelta'
 
     # Dataset sizes
