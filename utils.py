@@ -161,6 +161,9 @@ class FastMNIST(MNIST):
         device = get_device()
         self.data, self.targets = self.data.to(device), self.targets.to(device)
 
+    def un_normalize(self):
+        self.data = self.data.mul_(self.STD_DEV_MNIST).add_(self.MEAN_MNIST)
+
     def __getitem__(self, index):
         """
         Args:
@@ -174,7 +177,8 @@ class FastMNIST(MNIST):
         return img, target
 
 
-def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging, Optional[RTPT]]:
+def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging,
+                                                                             Optional[RTPT]]:
     args = SimpleArgumentParser()
     if overriding_args is not None:
         args.parse_args(overriding_args)
