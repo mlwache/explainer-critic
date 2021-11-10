@@ -81,7 +81,7 @@ class Explainer:
                  n_epochs: int,
                  ) -> Tuple[Loss, Loss]:
         init_loss, end_loss = self.train(learning_rate_start, learning_rate_step, n_epochs, constant_lr,
-                                         explanation_loss_weight=None, critic_lr=None)
+                                         explanation_loss_weight=0.0, critic_lr=None)
         self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
         return init_loss, end_loss
 
@@ -90,7 +90,7 @@ class Explainer:
               learning_rate_step: float,
               n_epochs: int,
               constant_lr: bool,
-              explanation_loss_weight: Optional[float],
+              explanation_loss_weight: float,
               critic_lr: Optional[float]
               ) -> Tuple[Loss, Loss]:
 
@@ -114,6 +114,7 @@ class Explainer:
                 outputs = self.classifier(inputs)
                 classification_loss = classification_loss_fn(outputs, labels)
 
+                explanation_loss_total_weight = 0.0
                 if critic_lr is not None:  # if we are not in pretraining
 
                     # this will add to the gradients of the explainer classifier's weights
@@ -122,8 +123,9 @@ class Explainer:
                     # however, as the gradients of the critic loss are added in each critic step,
                     # they are divided by the length of the critic set so the length of the critic set does
                     # not influence the experiments by modulating the number of added gradients.
+                    explanation_loss_total_weight = explanation_loss_weight / len(self.loaders.critic)
                     for x in self.classifier.parameters():
-                        x.grad *= explanation_loss_weight / len(self.loaders.critic)
+                        x.grad *= explanation_loss_total_weight
 
                 # additionally, add the gradients of the classification loss
                 classification_loss.backward()
@@ -132,6 +134,7 @@ class Explainer:
                     start_classification_loss = classification_loss.item()
                 end_classification_loss = classification_loss.item()
 
+                epsilon = 0.00000001
                 self.optimizer.step()
                 self.log_values(classification_loss=classification_loss.item(),
                                 pretraining_mode=critic_lr is None,
@@ -139,7 +142,7 @@ class Explainer:
                                 n_current_batch=n_current_batch,
                                 n_epochs=n_epochs,
                                 mean_critic_loss=mean_critic_loss,
-                                explanation_loss_weight=explanation_loss_weight)
+                                explanation_loss_total_weight=explanation_loss_total_weight)
 
             if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving
                 self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
@@ -162,10 +165,10 @@ class Explainer:
         return critic_mean_loss
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
-                   n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_weight: float):
+                   n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_total_weight: float):
         if self.logging:
             if n_current_batch % self.logging.log_interval == 0:
-                self.log_training_details(explanation_loss_weight=explanation_loss_weight,
+                self.log_training_details(explanation_loss_total_weight=explanation_loss_total_weight,
                                           mean_critic_loss=mean_critic_loss,
                                           classification_loss=classification_loss,
                                           n_current_batch=n_current_batch,
@@ -190,14 +193,14 @@ class Explainer:
         return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr,
                              args.n_pretraining_epochs)
 
-    def log_training_details(self, explanation_loss_weight, mean_critic_loss, classification_loss, n_current_batch,
-                             learning_rate):
+    def log_training_details(self, explanation_loss_total_weight, mean_critic_loss, classification_loss,
+                             n_current_batch, learning_rate):
 
         # add scalars to writer
         global_step = global_vars.global_step
         if self.logging:
-            if explanation_loss_weight:
-                total_loss = mean_critic_loss + classification_loss / explanation_loss_weight
+            if explanation_loss_total_weight:
+                total_loss = mean_critic_loss * explanation_loss_total_weight + classification_loss
             else:
                 total_loss = classification_loss
             self.logging.writer.add_scalar("Explainer_Training/Explanation", mean_critic_loss,
@@ -211,8 +214,8 @@ class Explainer:
             # print statistics
             print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
                   f'Loss: {total_loss:.3f} ='
-                  f' {classification_loss:.3f}(classification)/{explanation_loss_weight}(lambda)'
-                  f' + {mean_critic_loss:.3f}(explanation)')
+                  f' {classification_loss:.3f}(classification) + {explanation_loss_total_weight}(lambda)'
+                  f'*{mean_critic_loss:.3f}(explanation)')
             if self.rtpt:
                 self.rtpt.step(subtitle=f"loss={mean_critic_loss:2.2f}")
 
