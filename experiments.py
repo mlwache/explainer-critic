@@ -18,7 +18,7 @@ def run_experiments(overriding_args: Optional[List] = None):
 
     test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
     explainer = Explainer(device, loaders, args.optimizer, logging, test_batch_to_visualize, rtpt,
-                          model_path=f"models/{utils.config_string(args)}.pt")
+                          model_path=f"models/{utils.config_string(args)}.pt", explanation_mode=args.explanation_mode)
     ImageHandler.add_input_images(test_batch_to_visualize[0])  # needs only the images, not the labels
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
 
@@ -77,7 +77,11 @@ def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning
                       explanations: List) -> Tuple[Loss, Loss]:
     critic_loader = utils.load_data(n_training_samples=1, n_critic_samples=n_critic_batches * batch_size,
                                     n_test_samples=1, batch_size=batch_size).critic
-    critic = Critic(device, critic_loader, writer=None, log_interval_critic=1)
+    critic = Critic(explanation_mode="empty",
+                    device=device,
+                    critic_loader=critic_loader,
+                    writer=None,
+                    log_interval_critic=1)
 
     initial_loss, end_of_training_loss, _ = critic.train(explanations, critic_learning_rate)
     return initial_loss, end_of_training_loss

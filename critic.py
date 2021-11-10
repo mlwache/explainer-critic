@@ -15,12 +15,16 @@ Loss = float
 
 class Critic:
 
-    def __init__(self, device: str, critic_loader: DataLoader[Any], writer: Optional[SummaryWriter],
+    def __init__(self, explanation_mode: str,
+                 device: str,
+                 critic_loader: DataLoader[Any],
+                 writer: Optional[SummaryWriter],
                  log_interval_critic: Optional[int]):
         self.classifier = Net().to(device)
         self.critic_loader = critic_loader
         self.writer = writer
         self.log_interval_critic = log_interval_critic
+        self.explanation_mode = explanation_mode
 
     def train(self, explanations: List[Tensor], critic_learning_rate: float) -> Tuple[float, float, float]:
 
@@ -44,11 +48,19 @@ class Critic:
 
         optimizer.zero_grad()
 
+        final_explanation: Tensor
         if explanations:
-            input_explanation_product: Tensor = inputs * explanations[n_current_batch]
-        else:
-            input_explanation_product = inputs
-        outputs = self.classifier(input_explanation_product)
+            if self.explanation_mode == "input_x_gradient":
+                final_explanation = inputs * explanations[n_current_batch]
+            elif self.explanation_mode == "gradient" or self.explanation_mode == "integrated_gradient":
+                # don't change the explanation
+                final_explanation = explanations[n_current_batch]
+            else:
+                raise NotImplementedError(f"unknown explanation mode {self.explanation_mode}")
+
+        else:  # if trained without explanation, just train on the input.
+            final_explanation = inputs
+        outputs = self.classifier(final_explanation)
         loss = loss_function(outputs, labels)
         loss.backward()
         optimizer.step()

@@ -1,6 +1,8 @@
 import os
 from typing import Any, Tuple, Optional
 
+from captum.attr import IntegratedGradients
+
 import torch
 from captum.attr import InputXGradient
 from rtpt import RTPT
@@ -35,7 +37,7 @@ class Explainer:
 
     def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str],
                  logging: Optional[Logging], test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
-                 rtpt: Optional[RTPT], model_path: str):
+                 rtpt: Optional[RTPT], model_path: str, explanation_mode: str):
         self.device = device
         self.loaders = loaders
         self.optimizer_type = optimizer_type
@@ -43,8 +45,12 @@ class Explainer:
         self.test_batch_to_visualize = test_batch_to_visualize
         self.rtpt = rtpt
         self.model_path = model_path
+        self.explanation_mode = explanation_mode
 
         self.classifier = Net().to(device)
+
+        # if explanation_mode == "integrated_gradient":
+        #     self.classifier = self.classifier.double()
         if rtpt:
             self.rtpt.start()
 
@@ -134,7 +140,6 @@ class Explainer:
                     start_classification_loss = classification_loss.item()
                 end_classification_loss = classification_loss.item()
 
-                epsilon = 0.00000001
                 self.optimizer.step()
                 self.log_values(classification_loss=classification_loss.item(),
                                 pretraining_mode=critic_lr is None,
@@ -153,11 +158,20 @@ class Explainer:
         return start_classification_loss, end_classification_loss
 
     def train_critic_on_explanations(self, critic_lr: float):
-        critic = Critic(self.device, self.loaders.critic, self.logging.writer if self.logging else None,
-                        self.logging.critic_log_interval if self.logging else None)
+
+        critic = Critic(explanation_mode=self.explanation_mode,
+                        device=self.device,
+                        critic_loader=self.loaders.critic,
+                        writer=self.logging.writer if self.logging else None,
+                        log_interval_critic=self.logging.critic_log_interval if self.logging else None)
         explanations = []
         for inputs, labels in self.loaders.critic:
-            explanations.append(self.rescaled_input_gradient(inputs, labels))
+            if self.explanation_mode == "input_x_gradient" or self.explanation_mode == "gradient":
+                explanations.append(self.rescaled_input_gradient(inputs, labels))
+            elif self.explanation_mode == "integrated_gradient":
+                explanations.append(ImageHandler.rescale_to_zero_one(self.integrated_gradient(inputs, labels)))
+            else:
+                raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
 
         critic_mean_loss: float
         *_, critic_mean_loss = critic.train(explanations, critic_lr)
@@ -224,15 +238,18 @@ class Explainer:
             self.logging.writer.flush()
             self.logging.writer.close()
 
+    def integrated_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
+        integrated_gradients = IntegratedGradients(self.classifier.forward)
+        input_images.requires_grad = True
+        int_grad: Tensor = integrated_gradients.attribute(inputs=input_images, target=labels)
+        int_grad = int_grad.float()
+        return int_grad
+
     def input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
-        assert input_images.size()[1:] == torch.Size([1, 28, 28])
         input_x_gradient = InputXGradient(self.classifier.forward)
         input_images.requires_grad = True
-        gradient_x_input_one_image: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
-        gradient: Tensor = gradient_x_input_one_image / input_images
-
-        # The gradient tensor is computed from other tensors on cfg.device, so it should be there.
-        assert gradient.device.type == self.device
+        gradient_x_input: Tensor = input_x_gradient.attribute(inputs=input_images, target=labels)
+        gradient: Tensor = gradient_x_input / input_images
         return gradient
 
     def rescaled_input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:

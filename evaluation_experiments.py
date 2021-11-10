@@ -37,12 +37,12 @@ def choose_explanation_type():
 
 
 def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], str]:
-    # device: str
-    # cfg: SimpleArgumentParser
+    device: str
+    cfg: SimpleArgumentParser
     cfg, device, *_ = utils.setup([], eval_mode=True)
 
     explainer = Explainer(device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
-                          rtpt=None, model_path="")
+                          rtpt=None, model_path="", explanation_mode=cfg.explanation_mode)
 
     model_path = get_model_path(cfg)
     explainer.load_state(f"models/{model_path}")

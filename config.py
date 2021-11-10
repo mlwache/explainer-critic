@@ -19,6 +19,7 @@ class SimpleArgumentParser(Tap):
     explanation_loss_weight: float = 100  # high by default,
     # as the critic loss has a longer way to the weights, and therefore less influence.
     optimizer: str = 'adadelta'
+    explanation_mode: str = 'input_x_gradient'
 
     # Dataset sizes
     n_training_batches: int = 400
