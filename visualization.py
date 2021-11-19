@@ -35,8 +35,9 @@ class ImageHandler:
 
         # if the combination is multiplication, show only the gradient as well
         if explainer.explanation_mode == "input_x_gradient" or "input_x_integrated_gradient":
+            gradient = rescaled_explanation_batch/test_images
             ImageHandler.add_image_grid_to_writer(caption=f"(integrated) gradient/{additional_caption}",
-                                                  some_images=rescaled_explanation_batch,
+                                                  some_images=gradient,
                                                   global_step=global_step)
             # un-normalizing is also only necessary if we are in input-space.
             explanation_batch_show = ImageHandler.un_normalize(rescaled_explanation_batch)
