@@ -1,4 +1,3 @@
-# from typing import Any, Iterator
 from typing import Tuple, Optional
 
 import torchvision
@@ -16,7 +15,7 @@ class ImageHandler:
 
     @staticmethod
     def rescale_to_zero_one(images: Tensor):
-        images = abs(images)
+        assert (images >= 0).all(), "it's expected that all values are non-negative."
         amplified_images: Tensor = images / images.max()
         return amplified_images
 
@@ -35,8 +34,10 @@ class ImageHandler:
 
         ImageHandler.add_image_grid_to_writer(f"gradient/{additional_caption}", rescaled_input_gradient, global_step)
 
-        grad_x_input = ImageHandler.rescale_to_zero_one(rescaled_input_gradient*test_images)
-        ImageHandler.add_image_grid_to_writer(f"gradient x input/{additional_caption}", grad_x_input, global_step)
+        un_normalized_grad_x_input = ImageHandler.un_normalize(rescaled_input_gradient*test_images)
+        ImageHandler.add_image_grid_to_writer(caption=f"gradient x input/{additional_caption}",
+                                              some_images=un_normalized_grad_x_input,
+                                              global_step=global_step)
 
     @staticmethod
     def add_image_grid_to_writer(caption: str, some_images: Tensor, global_step: int = None):
@@ -45,6 +46,10 @@ class ImageHandler:
             ImageHandler.writer.add_image(caption, combined_image, global_step=global_step)
         else:
             print(colored(200, 0, 0, f"No writer set - skipped adding {caption} images."))
+
+    @staticmethod
+    def un_normalize(images):
+        return images.mul_(ImageHandler.STD_DEV_MNIST).add_(ImageHandler.MEAN_MNIST)
 
 
 def colored(r, g, b, text):

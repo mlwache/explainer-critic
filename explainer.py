@@ -1,10 +1,9 @@
 import os
 from typing import Any, Tuple, Optional
 
-from captum.attr import IntegratedGradients
-
 import torch
 from captum.attr import InputXGradient
+from captum.attr import IntegratedGradients
 from rtpt import RTPT
 from torch import Tensor, nn, optim
 from torch.nn.modules import Module
@@ -169,7 +168,9 @@ class Explainer:
             if self.explanation_mode == "input_x_gradient" or self.explanation_mode == "gradient":
                 explanations.append(self.rescaled_input_gradient(inputs, labels))
             elif self.explanation_mode == "integrated_gradient":
-                explanations.append(ImageHandler.rescale_to_zero_one(self.integrated_gradient(inputs, labels)))
+                integrated_gradients = self.integrated_gradient(inputs, labels)
+                integrated_gradients[integrated_gradients < 0] = 0  # clip negative values to zero.
+                explanations.append(ImageHandler.rescale_to_zero_one(integrated_gradients))
             else:
                 raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
 
@@ -254,6 +255,8 @@ class Explainer:
 
     def rescaled_input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
         gradient = self.input_gradient(input_images, labels)
+        # clip negative gradients to zero (don't distinguish between "no impact" and "negative impact" on the label)
+        gradient[gradient < 0] = 0
         return ImageHandler.rescale_to_zero_one(gradient)
 
     def predict(self, images: Tensor) -> Tensor:
