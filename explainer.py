@@ -48,8 +48,6 @@ class Explainer:
 
         self.classifier = Net().to(device)
 
-        # if explanation_mode == "integrated_gradient":
-        #     self.classifier = self.classifier.double()
         if rtpt:
             self.rtpt.start()
 
@@ -165,14 +163,7 @@ class Explainer:
                         log_interval_critic=self.logging.critic_log_interval if self.logging else None)
         explanations = []
         for inputs, labels in self.loaders.critic:
-            if self.explanation_mode == "input_x_gradient" or self.explanation_mode == "gradient":
-                explanations.append(self.rescaled_input_gradient(inputs, labels))
-            elif self.explanation_mode == "integrated_gradient":
-                integrated_gradients = self.integrated_gradient(inputs, labels)
-                integrated_gradients[integrated_gradients < 0] = 0  # clip negative values to zero.
-                explanations.append(ImageHandler.rescale_to_zero_one(integrated_gradients))
-            else:
-                raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
+            explanations.append(self.get_explanation_batch(inputs, labels))
 
         critic_mean_loss: float
         *_, critic_mean_loss = critic.train(explanations, critic_lr)
@@ -253,11 +244,29 @@ class Explainer:
         gradient: Tensor = gradient_x_input / input_images
         return gradient
 
-    def rescaled_input_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
-        gradient = self.input_gradient(input_images, labels)
+    def clip_and_rescale(self, images: Tensor) -> Tensor:
+        # if not self.disable_gradient_clipping:
         # clip negative gradients to zero (don't distinguish between "no impact" and "negative impact" on the label)
-        gradient[gradient < 0] = 0
-        return ImageHandler.rescale_to_zero_one(gradient)
+        images[images < 0] = 0
+        return ImageHandler.rescale_to_zero_one(images)
+
+    def get_explanation_batch(self, inputs: Tensor, labels: Tensor) -> Tensor:
+        if self.explanation_mode == "gradient" or self.explanation_mode == "input_x_gradient":
+            input_gradient = self.input_gradient(inputs, labels)
+            clipped_rescaled_input_gradient = self.clip_and_rescale(input_gradient)
+            if self.explanation_mode == "input_x_gradient":
+                return clipped_rescaled_input_gradient * inputs
+            else:
+                return clipped_rescaled_input_gradient
+        elif self.explanation_mode == "integrated_gradient" or self.explanation_mode == "input_x_integrated_gradient":
+            integrated_gradient = self.integrated_gradient(inputs, labels)
+            clipped_rescaled_integrated_gradient = self.clip_and_rescale(integrated_gradient)
+            if self.explanation_mode == "input_x_integrated_gradient":
+                return clipped_rescaled_integrated_gradient * inputs
+            else:
+                return clipped_rescaled_integrated_gradient
+        else:
+            raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
 
     def predict(self, images: Tensor) -> Tensor:
         outputs = self.classifier(images)

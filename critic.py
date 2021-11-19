@@ -48,19 +48,12 @@ class Critic:
 
         optimizer.zero_grad()
 
-        final_explanation: Tensor
+        explanation_batch: Tensor
         if explanations:
-            if self.explanation_mode == "input_x_gradient":
-                final_explanation = inputs * explanations[n_current_batch]
-            elif self.explanation_mode == "gradient" or self.explanation_mode == "integrated_gradient":
-                # don't change the explanation
-                final_explanation = explanations[n_current_batch]
-            else:
-                raise NotImplementedError(f"unknown explanation mode {self.explanation_mode}")
-
+            explanation_batch = explanations[n_current_batch]
         else:  # if trained without explanation, just train on the input.
-            final_explanation = inputs
-        outputs = self.classifier(final_explanation)
+            explanation_batch = inputs
+        outputs = self.classifier(explanation_batch)
         loss = loss_function(outputs, labels)
         loss.backward()
         optimizer.step()

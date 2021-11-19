@@ -30,13 +30,21 @@ class ImageHandler:
     def add_gradient_images(test_batch: Tuple[Tensor, Tensor], explainer, additional_caption: str,
                             global_step: int = None):
         test_images, test_labels = test_batch
-        rescaled_input_gradient: Tensor = explainer.rescaled_input_gradient(test_images, test_labels)
 
-        ImageHandler.add_image_grid_to_writer(f"gradient/{additional_caption}", rescaled_input_gradient, global_step)
+        rescaled_explanation_batch: Tensor = explainer.get_explanation_batch(test_images, test_labels)
 
-        un_normalized_grad_x_input = ImageHandler.un_normalize(rescaled_input_gradient*test_images)
-        ImageHandler.add_image_grid_to_writer(caption=f"gradient x input/{additional_caption}",
-                                              some_images=un_normalized_grad_x_input,
+        # if the combination is multiplication, show only the gradient as well
+        if explainer.explanation_mode == "input_x_gradient" or "input_x_integrated_gradient":
+            ImageHandler.add_image_grid_to_writer(caption=f"(integrated) gradient/{additional_caption}",
+                                                  some_images=rescaled_explanation_batch,
+                                                  global_step=global_step)
+            # un-normalizing is also only necessary if we are in input-space.
+            explanation_batch_show = ImageHandler.un_normalize(rescaled_explanation_batch)
+        else:
+            explanation_batch_show = rescaled_explanation_batch
+
+        ImageHandler.add_image_grid_to_writer(caption=f"{explainer.explanation_mode}/{additional_caption}",
+                                              some_images=explanation_batch_show,
                                               global_step=global_step)
 
     @staticmethod
