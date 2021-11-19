@@ -1,14 +1,9 @@
 # from typing import Any, Iterator
 from typing import Tuple, Optional
 
-import matplotlib.pyplot as plt
-import numpy as np
 import torchvision
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import functional
-
-# from torchviz import make_dot
 
 
 class ImageHandler:
@@ -18,40 +13,12 @@ class ImageHandler:
 
     device: str
     writer: Optional[SummaryWriter]
-    # function to show an image
-
-    @staticmethod
-    def show_images(images: Tensor):
-        # assume image is scaled to [0,1]
-        assert 0 <= images.max() <= 1
-        assert 0 <= images.min() <= 1
-        combined_image = torchvision.utils.make_grid(images)
-        # invert image for better visibility
-        inverted = functional.invert(combined_image)
-        np_img = inverted.cpu().numpy()  # img_un_normalized.numpy()
-        plt.imshow(np.transpose(np_img, (1, 2, 0)))  # .astype(np.uint8)*255)  # added `.astype(np.uint8)*255` here
-        # to get rid of "clipping Data to valid range" error, but it's less easy with np.float, as this doesn't have
-        # guarantees on the range. However the quality is a bit worse this way, maybe I should change it back some time.
-        # But I don't think so, as it's only for the visualization.
-        # (https://stackoverflow.com/questions/49643907/clipping-input-data-to-the-valid-range-for-imshow-with-rgb-data-0-1-for-floa)
-        plt.show()
-
-    @staticmethod
-    def rescale_and_show(images: Tensor):
-        amplified_images = ImageHandler.rescale_to_zero_one(images)
-        ImageHandler.show_images(amplified_images)
 
     @staticmethod
     def rescale_to_zero_one(images: Tensor):
-        # detach in order to be able to process like an ndarray.
         images = abs(images)
         amplified_images: Tensor = images / images.max()
         return amplified_images
-
-#     @staticmethod
-#     def show_computation_graph(labels, parameters):
-#         raise NotImplementedError
-# #        make_dot(y, parameters)
 
     @staticmethod
     def add_input_images(input_images: Tensor, caption: str = "some input images"):
