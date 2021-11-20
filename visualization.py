@@ -34,7 +34,8 @@ class ImageHandler:
         rescaled_explanation_batch: Tensor = explainer.get_explanation_batch(test_images, test_labels)
 
         # if the combination is multiplication, show only the gradient as well
-        if explainer.explanation_mode == "input_x_gradient" or "input_x_integrated_gradient":
+        if explainer.explanation_mode == "input_x_gradient" \
+                or explainer.explanation_mode == "input_x_integrated_gradient":
             gradient = rescaled_explanation_batch/test_images
             ImageHandler.add_image_grid_to_writer(caption=f"(integrated) gradient/{additional_caption}",
                                                   some_images=gradient,
