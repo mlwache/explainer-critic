@@ -118,7 +118,8 @@ def config_string(cfg: SimpleArgumentParser) -> str:
     run_name = cfg.run_name + "_" if cfg.run_name else ""
 
     return f'{run_name}' \
-           f'{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
+           f'{cfg.explanation_mode}' \
+           f'_{cfg.training_mode}_ex{cfg.n_training_batches}_cr{cfg.n_critic_batches}' \
            f'_lr{cfg.learning_rate_start}_{lr_mode}' \
            f'_bs{cfg.batch_size}_ep{cfg.n_epochs}_p-ep{cfg.n_pretraining_epochs}' \
            f'_gm{cfg.learning_rate_step}_ts{cfg.n_test_batches}' \
