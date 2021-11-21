@@ -78,18 +78,22 @@ class Explainer:
             print(colored(200, 100, 0, f"Saved model to {path}"))
 
     def pretrain(self,
-                 learning_rate_start: float,
+                 learning_rate: float,
                  learning_rate_step: float,
                  lr_scheduling: bool,
                  n_epochs: int,
                  ) -> Tuple[Loss, Loss]:
-        init_loss, end_loss = self.train(learning_rate_start, learning_rate_step, n_epochs, lr_scheduling,
-                                         explanation_loss_weight=0.0, critic_lr=None)
+        init_loss, end_loss = self.train(learning_rate=learning_rate,
+                                         learning_rate_step=learning_rate_step,
+                                         n_epochs=n_epochs,
+                                         lr_scheduling=lr_scheduling,
+                                         explanation_loss_weight=0.0,
+                                         critic_lr=None)
         self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
         return init_loss, end_loss
 
     def train(self,
-              learning_rate_start: float,
+              learning_rate: float,
               learning_rate_step: float,
               n_epochs: int,
               lr_scheduling: bool,
@@ -101,7 +105,7 @@ class Explainer:
             raise ValueError("Can't train, because the explainer is in evaluation mode.")
 
         self.classifier.train()
-        self.initialize_optimizer(learning_rate_start)
+        self.initialize_optimizer(learning_rate)
         classification_loss_fn: Module = nn.CrossEntropyLoss()
         scheduler = StepLR(self.optimizer, step_size=1, gamma=learning_rate_step)
 
@@ -192,7 +196,7 @@ class Explainer:
                 global_vars.global_step += 1
 
     def train_from_args(self, args: SimpleArgumentParser):
-        return self.train(args.learning_rate_start, args.learning_rate_step, args.n_epochs,
+        return self.train(args.learning_rate, args.learning_rate_step, args.n_epochs,
                           args.lr_scheduling, args.explanation_loss_weight, args.learning_rate_critic)
 
     def pretrain_from_args(self, args: SimpleArgumentParser):

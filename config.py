@@ -12,11 +12,11 @@ class SimpleArgumentParser(Tap):
 
     # Training Details
     batch_size: int = 128
-    learning_rate_start: float = 0.2
+    learning_rate: float = 0.01
     learning_rate_step: float = 0.7
     learning_rate_critic: float = 0.2
-    pretrain_learning_rate: float = 1.0
-    explanation_loss_weight: float = 100  # high by default,
+    pretrain_learning_rate: float = 0.05
+    explanation_loss_weight: float = 50  # high by default,
     # as the critic loss has a longer way to the weights, and therefore less influence.
     optimizer: str = 'adadelta'
     explanation_mode: str = 'input_x_gradient'
