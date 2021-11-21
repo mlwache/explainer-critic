@@ -37,8 +37,11 @@ def test_critic_makes_progress_without_explanations(args: SimpleArgumentParser):
 def test_explainer_makes_progress_with_only_classification(args):
     n_classes = 10
     n_training_samples = 20 * args.batch_size  # 20 batches
-    loaders = utils.load_data(n_training_samples, n_critic_samples=0, n_test_samples=0,
-                              batch_size=args.batch_size)
+    loaders = utils.load_data(n_training_samples=n_training_samples,
+                              n_critic_samples=0,
+                              n_test_samples=0,
+                              batch_size=args.batch_size,
+                              test_batch_size=1)
     explainer = Explainer(utils.get_device(), loaders, args.optimizer, logging=None, test_batch_to_visualize=None,
                           rtpt=None, model_path="", explanation_mode=args.explanation_mode)
     initial_loss, end_of_training_loss = explainer.pretrain(args.pretrain_learning_rate, args.learning_rate_step,

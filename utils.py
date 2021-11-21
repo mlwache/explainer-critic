@@ -39,12 +39,19 @@ class Logging:
 
 
 def load_data_from_args(args: SimpleArgumentParser) -> Loaders:
-    return load_data(args.n_training_samples, args.n_critic_samples, args.n_test_samples, args.batch_size)
+    return load_data(n_training_samples=args.n_training_samples,
+                     n_critic_samples=args.n_critic_samples,
+                     n_test_samples=args.n_test_samples,
+                     batch_size=args.batch_size,
+                     test_batch_size=args.test_batch_size)
 
 
 # noinspection PyShadowingNames
-def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: int,
-              batch_size: int) -> Loaders:
+def load_data(n_training_samples: int,
+              n_critic_samples: int,
+              n_test_samples: int,
+              batch_size: int,
+              test_batch_size: int) -> Loaders:
     training_and_critic_set = FastMNIST('./data', train=True, download=True)
     full_test_set = FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
@@ -74,7 +81,7 @@ def load_data(n_training_samples: int, n_critic_samples: int, n_test_samples: in
     loaders = Loaders(
         train=DataLoader(training_set, batch_size=batch_size, num_workers=0),
         critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0),
-        test=DataLoader(test_set, batch_size=batch_size, num_workers=0),
+        test=DataLoader(test_set, batch_size=test_batch_size, num_workers=0),
         visualization=DataLoader(visualization_set, batch_size=n_vis_samples, num_workers=0))
 
     return loaders

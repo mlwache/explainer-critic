@@ -75,8 +75,11 @@ def run_experiments(overriding_args: Optional[List] = None):
 
 def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning_rate,
                       explanations: List) -> Tuple[Loss, Loss]:
-    critic_loader = utils.load_data(n_training_samples=1, n_critic_samples=n_critic_batches * batch_size,
-                                    n_test_samples=1, batch_size=batch_size).critic
+    critic_loader = utils.load_data(n_training_samples=1,
+                                    n_critic_samples=n_critic_batches * batch_size,
+                                    n_test_samples=1,
+                                    batch_size=batch_size,
+                                    test_batch_size=1).critic
     critic = Critic(explanation_mode="empty",
                     device=device,
                     critic_loader=critic_loader,

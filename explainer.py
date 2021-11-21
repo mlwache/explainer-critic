@@ -286,7 +286,6 @@ class Explainer:
             for i, (images, labels) in enumerate(data_loader):
                 if i >= n_batches:  # only test on a set of the test set size, even for training accuracy.
                     break
-                # images, labels = images.to(self.device), labels.to(self.device)
 
                 outputs = self.classifier(images)
 

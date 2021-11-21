@@ -12,6 +12,7 @@ class SimpleArgumentParser(Tap):
 
     # Training Details
     batch_size: int = 128
+    test_batch_size: int = 100
     learning_rate: float = 0.01
     learning_rate_step: float = 0.7
     learning_rate_critic: float = 0.2
@@ -37,7 +38,7 @@ class SimpleArgumentParser(Tap):
     log_interval_pretraining: int = log_interval
     # Setting this to a different value than log_interval will lead to pre- and combined training having
     # different logging intervals.
-    log_interval_accuracy: int = 20
+    log_interval_accuracy: int = 50
     # setting this to a lower value will reduce performance significantly.
 
     render_enabled: bool = False
@@ -91,4 +92,4 @@ class SimpleArgumentParser(Tap):
 
     @property
     def n_test_samples(self) -> int:
-        return self.n_test_batches * self.batch_size
+        return self.n_test_batches * self.test_batch_size

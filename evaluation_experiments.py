@@ -69,7 +69,11 @@ def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], DataLoa
     explainer.classifier.eval()
 
     # get the full 10000 MNIST test samples
-    loaders = utils.load_data(1, 1, 10000, batch_size=100)
+    loaders = utils.load_data(n_training_samples=1,
+                              n_critic_samples=1,
+                              n_test_samples=10000,
+                              batch_size=1,
+                              test_batch_size=100)
 
     return explainer, loaders.test, loaders.visualization, device,
 
