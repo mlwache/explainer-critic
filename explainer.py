@@ -188,12 +188,15 @@ class Explainer:
                 ImageHandler.add_gradient_images(self.test_batch_to_visualize, self, "2: during training",
                                                  global_step=global_vars.global_step)
             if pretraining_mode:
-                progress_percentage: float = 100 * current_epoch / n_epochs
-                print(f'{colored(0, 150, 100, "pretraining:")} epoch {current_epoch}, '
-                      f'batch {n_current_batch} of {n_epochs} epochs '
-                      f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
-                # in pretraining mode the global step is not increased in the critic, so it needs to be done here.
+                print(f'{colored(100, 50, 100, "pretraining:")}')
                 global_vars.global_step += 1
+                # in pretraining mode the global step is not increased in the critic, so it needs to be done here.
+
+            progress_percentage: float = 100 * current_epoch / n_epochs
+            print(f'{colored(0, 150, 100, str(self.logging.run_name))}: '
+                  f'epoch {current_epoch}, '
+                  f'explainer batch {n_current_batch} of {n_epochs} epochs '
+                  f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
 
     def train_from_args(self, args: SimpleArgumentParser):
         return self.train(args.learning_rate, args.learning_rate_step, args.n_epochs,
@@ -222,8 +225,7 @@ class Explainer:
             self.logging.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
 
             # print statistics
-            print(f'{colored(0, 150, 100, str(self.logging.run_name))}: explainer [batch  {n_current_batch}] \n'
-                  f'Loss: {total_loss:.3f} ='
+            print(f'Loss: {total_loss:.3f} ='
                   f' {classification_loss:.3f}(classification) + {explanation_loss_total_weight}(lambda)'
                   f'*{mean_critic_loss:.3f}(explanation)')
             if self.rtpt:
