@@ -80,7 +80,7 @@ def load_data(n_training_samples: int,
 
     loaders = Loaders(
         train=DataLoader(training_set, batch_size=batch_size, num_workers=0, shuffle=True),
-        critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0),
+        critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0, shuffle=True),
         test=DataLoader(test_set, batch_size=test_batch_size, num_workers=0),
         visualization=DataLoader(visualization_set, batch_size=n_vis_samples, num_workers=0))
 
