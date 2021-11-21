@@ -8,7 +8,7 @@ def _colored(r, g, b, text):
 class SimpleArgumentParser(Tap):
     training_mode: str = "pretrain_from_scratch"
     logging_disabled: bool = False
-    constant_lr: bool = False
+    lr_scheduling: bool = False
 
     # Training Details
     batch_size: int = 128

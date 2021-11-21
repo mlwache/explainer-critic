@@ -80,10 +80,10 @@ class Explainer:
     def pretrain(self,
                  learning_rate_start: float,
                  learning_rate_step: float,
-                 constant_lr: bool,
+                 lr_scheduling: bool,
                  n_epochs: int,
                  ) -> Tuple[Loss, Loss]:
-        init_loss, end_loss = self.train(learning_rate_start, learning_rate_step, n_epochs, constant_lr,
+        init_loss, end_loss = self.train(learning_rate_start, learning_rate_step, n_epochs, lr_scheduling,
                                          explanation_loss_weight=0.0, critic_lr=None)
         self.save_state('./models/pretrained_model.pt', epoch=-1, loss=end_loss)
         return init_loss, end_loss
@@ -92,7 +92,7 @@ class Explainer:
               learning_rate_start: float,
               learning_rate_step: float,
               n_epochs: int,
-              constant_lr: bool,
+              lr_scheduling: bool,
               explanation_loss_weight: float,
               critic_lr: Optional[float]
               ) -> Tuple[Loss, Loss]:
@@ -148,7 +148,7 @@ class Explainer:
 
             if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving
                 self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
-            if not constant_lr:
+            if lr_scheduling:
                 scheduler.step()
 
         self.terminate_writer()
@@ -193,10 +193,10 @@ class Explainer:
 
     def train_from_args(self, args: SimpleArgumentParser):
         return self.train(args.learning_rate_start, args.learning_rate_step, args.n_epochs,
-                          args.constant_lr, args.explanation_loss_weight, args.learning_rate_critic)
+                          args.lr_scheduling, args.explanation_loss_weight, args.learning_rate_critic)
 
     def pretrain_from_args(self, args: SimpleArgumentParser):
-        return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.constant_lr,
+        return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.lr_scheduling,
                              args.n_pretraining_epochs)
 
     def log_training_details(self, explanation_loss_total_weight, mean_critic_loss, classification_loss,
