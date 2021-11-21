@@ -72,7 +72,7 @@ def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], DataLoa
     loaders = utils.load_data(n_training_samples=1,
                               n_critic_samples=1,
                               n_test_samples=10000,
-                              batch_size=1,
+                              batch_size=100,
                               test_batch_size=100)
 
     return explainer, loaders.test, loaders.visualization, device,
