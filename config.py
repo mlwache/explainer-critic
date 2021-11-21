@@ -55,9 +55,6 @@ class SimpleArgumentParser(Tap):
             self.log_interval_critic = 1
             self.log_interval_pretraining = 1
             self.log_interval_accuracy = 1
-        if self.batch_size <= 16:
-            print(_colored(200, 150, 0, f"lowered pretraining learning rate as batch size {self.batch_size} is small"))
-            self.pretrain_learning_rate = 0.2
 
     @property
     def combined_iterations(self) -> int:
