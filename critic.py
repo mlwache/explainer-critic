@@ -1,6 +1,8 @@
+import random
 from statistics import mean
 from typing import Any, List, Tuple, Optional
 
+import torch
 from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
@@ -29,13 +31,21 @@ class Critic:
     def train(self, explanations: List[Tensor], critic_learning_rate: float) -> Tuple[float, float, float]:
 
         self.classifier.train()
+        # shuffle the data before each critic training.
+        if explanations:
+            zipped = list(zip(explanations, list(self.critic_loader)))
+            random.shuffle(zipped)
+            permuted_explanations, permuted_critic_set = zip(*zipped)
+        else:
+            permuted_critic_set = list(self.critic_loader)
+            random.shuffle(permuted_critic_set)
 
         critic_loss: Module = nn.CrossEntropyLoss()
         optimizer: Optimizer = optim.Adadelta(self.classifier.parameters(), lr=critic_learning_rate)
 
         losses: List[float] = []
 
-        for n_current_batch, (inputs, labels) in enumerate(self.critic_loader):
+        for n_current_batch, (inputs, labels) in enumerate(permuted_critic_set):
             losses.append(self._process_batch(critic_loss, explanations,
                                               inputs, labels, n_current_batch,
                                               optimizer))
