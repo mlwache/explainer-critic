@@ -16,13 +16,10 @@ def run_evaluation_experiments():
     Expects that the arguments are the same as for the model that should be evaluated"""
 
     explainers, test_loader, visualization_loader, device = set_up_evaluation_experiments()
+    accuracies = compute_accuracies(explainers, test_loader)
     visualization_loaders = get_visualization_loaders()
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
-
-    column_1, column_2 = st.columns(2)
-    column_1.write(f"### Model 1: Trained on {explainers[1].explanation_mode}")
-    column_2.write("### Model 2: Trained on input")
 
     explanation_mode = st.sidebar.select_slider(label="Explanation Mode",
                                                 options=["gradient",
@@ -32,11 +29,16 @@ def run_evaluation_experiments():
 
     inputs, labels = iter(visualization_loaders[label]).__next__()
 
+    inputs = transform(inputs, "unnormalize")
+    for i in range(2):
+        st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
+
+    column_1, column_2 = st.columns(2)
+    column_1.write(f"### Model 1: Trained on {explainers[1].explanation_mode}")
+    column_2.write("### Model 2: Trained on input")
+
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
-            inputs = transform(inputs, "unnormalize")
-            for i in range(2):
-                st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
 
             f" Prediction: `{explainers[model_nr].predict(inputs)}`"
             # TODO
@@ -44,7 +46,7 @@ def run_evaluation_experiments():
             # ics = inter_class_similarity
             # st.markdown(f"Euclidean ICS of label {label}: {ics}")
             # st.markdown(f"Mean Euclidean ICS: {ics}")
-
+            st.write(f"accuracy: {accuracies[model_nr]}")
             explainers[model_nr].explanation_mode = explanation_mode
             f" Explanation Mode: `{explanation_mode}`"
 
@@ -55,6 +57,10 @@ def run_evaluation_experiments():
             for i in range(2):
                 st.image(transforms.ToPILImage()(explanations[i][0].squeeze_(0)), width=100, output_format='PNG')
 
+
+@st.cache
+def compute_accuracies(explainers, test_loader: DataLoader[Any]) -> List[float]:
+    return [explainer.compute_accuracy(test_loader, n_batches=len(test_loader)) for explainer in explainers]
 
 def transform(images: Tensor, mode: str) -> Tensor:
     # check if images are currently normalized or not
