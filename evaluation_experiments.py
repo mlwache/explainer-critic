@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Any, Tuple, List
 
 import streamlit as st
 import torch
@@ -15,33 +15,46 @@ def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    explainer, test_loader, visualization_loader, device = set_up_evaluation_experiments()
+    explainers, test_loader, visualization_loader, device = set_up_evaluation_experiments()
     visualization_loaders = get_visualization_loaders()
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
-    inputs, labels = iter(visualization_loaders[label]).__next__()
 
-    inputs = transform(inputs, "unnormalize")
-    for i in range(2):
-        st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
-
-    st.markdown(f" Prediction: `{explainer.predict(inputs)}`")
-    st.markdown(f"Ground truth:`{labels}`")
+    column_1, column_2 = st.columns(2)
+    column_1.write(f"### Model 1: Trained on {explainers[1].explanation_mode}")
+    column_2.write("### Model 2: Trained on input")
 
     explanation_mode = st.sidebar.select_slider(label="Explanation Mode",
                                                 options=["gradient",
                                                          "input_x_gradient",
                                                          "integrated_gradient",
                                                          "input_x_integrated_gradient"])
-    explainer.explanation_mode = explanation_mode
-    st.markdown(f" Explanation Mode: `{explanation_mode}`")
 
-    inputs = transform(inputs, "normalize")
-    explanations = explainer.get_explanation_batch(inputs, labels)
+    inputs, labels = iter(visualization_loaders[label]).__next__()
 
-    explanations = transform(explanations, "unnormalize")
-    for i in range(2):
-        st.image(transforms.ToPILImage()(explanations[i][0].squeeze_(0)), width=100, output_format='PNG')
+    for model_nr, column in enumerate([column_1, column_2]):  # compare two models
+        with column:
+            inputs = transform(inputs, "unnormalize")
+            for i in range(2):
+                st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
+
+            f" Prediction: `{explainers[model_nr].predict(inputs)}`"
+            # f"Ground truth:`{labels}`"
+            # TODO
+            # @st.cache  #don't compute this every time
+            # ics = inter_class_similarity
+            # st.markdown(f"Euclidean ICS of label {label}: {ics}")
+            # st.markdown(f"Mean Euclidean ICS: {ics}")
+
+            explainers[model_nr].explanation_mode = explanation_mode
+            f" Explanation Mode: `{explanation_mode}`"
+
+            inputs = transform(inputs, "normalize")
+            explanations = explainers[model_nr].get_explanation_batch(inputs, labels)
+
+            explanations = transform(explanations, "unnormalize")
+            for i in range(2):
+                st.image(transforms.ToPILImage()(explanations[i][0].squeeze_(0)), width=100, output_format='PNG')
 
 
 def transform(images: Tensor, mode: str) -> Tensor:
@@ -52,9 +65,9 @@ def transform(images: Tensor, mode: str) -> Tensor:
     std_dev_mnist: float = 0.3081
 
     if normalized and mode == "unnormalize":
-        return images.mul_(std_dev_mnist).add_(mean_mnist)
+        return images.mul(std_dev_mnist).add(mean_mnist).detach()
     if not normalized and mode == "normalize":
-        return images.sub_(mean_mnist).div_(std_dev_mnist)
+        return images.sub(mean_mnist).div(std_dev_mnist).detach()
     else:
         return images
 
@@ -71,17 +84,17 @@ def get_visualization_loaders():
     return visualization_loaders
 
 
-def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], DataLoader[Any], str]:
+def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], DataLoader[Any], str]:
     device: str
     cfg: SimpleArgumentParser
     cfg, device, *_ = utils.setup([], eval_mode=True)
 
-    explainer = Explainer(device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
-                          rtpt=None, model_path="", explanation_mode=cfg.explanation_mode)
-
-    model_path = "fixed_testset_default_aso.pt"  # get_model_path(cfg)
-    explainer.load_state(f"models/{model_path}")
-    explainer.classifier.eval()
+    model_paths = ["fixed_testset_default_aso.pt", "pretrained_model.pt"]
+    explainers: List[Explainer] = []
+    for i in range(2):
+        explainers.append(get_empty_explainer(device=device, explanation_mode=cfg.explanation_mode))
+        explainers[i].load_state(f"models/{model_paths[i]}")
+        explainers[i].classifier.eval()
 
     # get the full 10000 MNIST test samples
     loaders = utils.load_data(n_training_samples=1,
@@ -90,7 +103,13 @@ def set_up_evaluation_experiments() -> Tuple[Explainer, DataLoader[Any], DataLoa
                               batch_size=100,
                               test_batch_size=100)
 
-    return explainer, loaders.test, loaders.visualization, device,
+    return explainers, loaders.test, loaders.visualization, device
+
+
+def get_empty_explainer(device, explanation_mode) -> Explainer:
+    return Explainer(device=device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
+                          rtpt=None, model_path="", explanation_mode=explanation_mode)
+
 
 
 if __name__ == '__main__':
