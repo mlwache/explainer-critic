@@ -39,7 +39,6 @@ def run_evaluation_experiments():
                 st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
 
             f" Prediction: `{explainers[model_nr].predict(inputs)}`"
-            # f"Ground truth:`{labels}`"
             # TODO
             # @st.cache  #don't compute this every time
             # ics = inter_class_similarity
@@ -72,6 +71,7 @@ def transform(images: Tensor, mode: str) -> Tensor:
         return images
 
 
+@st.cache(allow_output_mutation=True)
 def get_visualization_loaders():
     full_test_set = utils.FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
@@ -84,6 +84,7 @@ def get_visualization_loaders():
     return visualization_loaders
 
 
+@st.cache(allow_output_mutation=True)
 def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], DataLoader[Any], str]:
     device: str
     cfg: SimpleArgumentParser
