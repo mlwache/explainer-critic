@@ -1,6 +1,7 @@
 from typing import Any, Tuple, List
 
 import streamlit as st
+from streamlit import session_state as state
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, Subset
@@ -15,9 +16,12 @@ def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    explainers, test_loader, visualization_loader, device = set_up_evaluation_experiments()
-    accuracies = compute_accuracies(explainers, test_loader)
-    visualization_loaders = get_visualization_loaders()
+    if 'explainers' not in st.session_state:
+        state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
+        state.accuracies = compute_accuracies(state.explainers, state.test_loader)
+        state.visualization_loaders = get_visualization_loaders()
+    accuracies = st.session_state.accuracies
+    visualization_loaders = st.session_state.visualization_loaders
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
 
@@ -34,24 +38,23 @@ def run_evaluation_experiments():
         st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
 
     column_1, column_2 = st.columns(2)
-    column_1.write(f"### Model 1: Trained on {explainers[1].explanation_mode}")
+    column_1.write(f"### Model 1: Trained on {state.explainers[1].explanation_mode}")
     column_2.write("### Model 2: Trained on input")
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
 
-            f" Prediction: `{explainers[model_nr].predict(inputs)}`"
+            f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             # TODO
-            # @st.cache  #don't compute this every time
-            # ics = inter_class_similarity
+            # ics = inter_class_similarity(explanations, labels) # don't compute it here, only access it.
             # st.markdown(f"Euclidean ICS of label {label}: {ics}")
-            # st.markdown(f"Mean Euclidean ICS: {ics}")
+            # st.markdown(f"Mean Euclidean ICS: {mean_ics}") # same thing as for the accuracy.
             st.write(f"accuracy: {accuracies[model_nr]}")
-            explainers[model_nr].explanation_mode = explanation_mode
+            state.explainers[model_nr].explanation_mode = explanation_mode
             f" Explanation Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
-            explanations = explainers[model_nr].get_explanation_batch(inputs, labels)
+            explanations = state.explainers[model_nr].get_explanation_batch(inputs, labels)
 
             explanations = transform(explanations, "unnormalize")
             for i in range(2):
@@ -61,6 +64,7 @@ def run_evaluation_experiments():
 @st.cache
 def compute_accuracies(explainers, test_loader: DataLoader[Any]) -> List[float]:
     return [explainer.compute_accuracy(test_loader, n_batches=len(test_loader)) for explainer in explainers]
+
 
 def transform(images: Tensor, mode: str) -> Tensor:
     # check if images are currently normalized or not
