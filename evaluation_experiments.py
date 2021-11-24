@@ -1,3 +1,4 @@
+from statistics import mean
 from typing import Any, Tuple, List
 
 import streamlit as st
@@ -12,43 +13,12 @@ from config import SimpleArgumentParser
 from explainer import Explainer
 
 
-def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader) -> List[Tuple[Tensor, int]]:
-    """get all explanations together with the labels, and don't combine them into batches."""
-    labeled_explanations = []
-    for inputs, labels in test_loader:
-        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels))
-        labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
-        labeled_explanations.extend(labeled_explanation_batch)
-    return labeled_explanations
-
-
-def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
-    """sorts the points by their labels, and returns a list of the mean square distances by label """
-    intraclass_mean_square_distances = []
-    for label in range(10):
-        label_subset = [point for [point, lab] in labeled_points if lab == label]
-        intraclass_mean_square_distances.append(mean_square_distance(label_subset))
-    return intraclass_mean_square_distances
-
-
-def mean_square_distance(points: List[Tensor]) -> float:
-    """computes the mean square distance to the mean of a cluster of points"""
-    points = torch.stack(points)
-    # TODO check dims
-    mean_point = torch.mean(points, dim=0)
-    # TODO show mean point
-    differences_to_mean = points - mean_point
-    # take the l_2 distance along the dimensions of the image
-    l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
-    return torch.mean(l_2_distances).item()
-
-
 def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
 
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    if True:  # 'explainers' not in st.session_state:
+    if 'explainers' not in st.session_state:
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
@@ -90,8 +60,9 @@ def run_evaluation_experiments():
         with column:
             st.write(f"Intra-Class Mean Square Distance of Class `{label}`:"
                      f" `{state.intra_class_mean_distances[model_nr][label]:.3f}`")
+            st.write(f"Intra-Class MSD, averaged over classes `{mean(state.intra_class_mean_distances[model_nr]):.3f}`")
             st.write(f"Aggregated Mean Square Distance: `{state.total_mean_distances[model_nr]:.3f}`")
-            st.write(f"accuracy: {accuracies[model_nr]}")
+            st.write(f"accuracy: `{accuracies[model_nr]}`")
 
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             state.explainers[model_nr].explanation_mode = explanation_mode
@@ -159,11 +130,42 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
     # get the full 10000 MNIST test samples
     loaders = utils.load_data(n_training_samples=1,
                               n_critic_samples=1,
-                              n_test_samples=100,
+                              n_test_samples=1000,
                               batch_size=100,
                               test_batch_size=100)
 
     return explainers, loaders.test, loaders.visualization, device
+
+
+def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader) -> List[Tuple[Tensor, int]]:
+    """get all explanations together with the labels, and don't combine them into batches."""
+    labeled_explanations = []
+    for inputs, labels in test_loader:
+        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels))
+        labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
+        labeled_explanations.extend(labeled_explanation_batch)
+    return labeled_explanations
+
+
+def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
+    """sorts the points by their labels, and returns a list of the mean square distances by label """
+    intraclass_mean_square_distances = []
+    for label in range(10):
+        label_subset = [point for [point, lab] in labeled_points if lab == label]
+        intraclass_mean_square_distances.append(mean_square_distance(label_subset))
+    return intraclass_mean_square_distances
+
+
+def mean_square_distance(points: List[Tensor]) -> float:
+    """computes the mean square distance to the mean of a cluster of points"""
+    points = torch.stack(points)
+    # TODO check dims
+    mean_point = torch.mean(points, dim=0)
+    # TODO show mean point
+    differences_to_mean = points - mean_point
+    # take the l_2 distance along the dimensions of the image
+    l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
+    return torch.mean(l_2_distances).item()
 
 
 def get_empty_explainer(device, explanation_mode) -> Explainer:
