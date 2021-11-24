@@ -279,7 +279,9 @@ class Explainer:
         _, prediction = torch.max(outputs, 1)
         return prediction
 
-    def compute_accuracy(self, data_loader: DataLoader[Any], n_batches: int):
+    def compute_accuracy(self, data_loader: DataLoader[Any], n_batches: Optional[int] = None):
+        if n_batches is None:
+            n_batches = len(data_loader)
         n_correct_samples: int = 0
         n_test_samples_total: int = 0
 

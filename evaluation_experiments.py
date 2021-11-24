@@ -1,8 +1,8 @@
 from typing import Any, Tuple, List
 
 import streamlit as st
-from streamlit import session_state as state
 import torch
+from streamlit import session_state as state
 from torch import Tensor
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
@@ -12,14 +12,59 @@ from config import SimpleArgumentParser
 from explainer import Explainer
 
 
+def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader) -> List[Tuple[Tensor, int]]:
+    """get all explanations together with the labels, and don't combine them into batches."""
+    labeled_explanations = []
+    for inputs, labels in test_loader:
+        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels))
+        labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
+        labeled_explanations.extend(labeled_explanation_batch)
+    return labeled_explanations
+
+
+def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
+    """sorts the points by their labels, and returns a list of the mean square distances by label """
+    intraclass_mean_square_distances = []
+    for label in range(10):
+        label_subset = [point for [point, lab] in labeled_points if lab == label]
+        intraclass_mean_square_distances.append(mean_square_distance(label_subset))
+    return intraclass_mean_square_distances
+
+
+def mean_square_distance(points: List[Tensor]) -> float:
+    """computes the mean square distance to the mean of a cluster of points"""
+    points = torch.stack(points)
+    # TODO check dims
+    mean_point = torch.mean(points, dim=0)
+    # TODO show mean point
+    differences_to_mean = points - mean_point
+    # take the l_2 distance along the dimensions of the image
+    l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
+    return torch.mean(l_2_distances).item()
+
+
 def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained.
+
     Expects that the arguments are the same as for the model that should be evaluated"""
 
-    if 'explainers' not in st.session_state:
+    if True:  # 'explainers' not in st.session_state:
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
-        state.accuracies = compute_accuracies(state.explainers, state.test_loader)
+        # all of the following are lists, because I compute them for multiple models.
+        state.accuracies = []
+        state.intra_class_mean_distances = []
+        state.total_mean_distances = []
+        for model_nr in range(2):
+            # first, get  all explanations of the test set
+            labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
+                                                                                      state.test_loader)
+            explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
+
+            state.intra_class_mean_distances.append(intra_class_mean_square_distances(labeled_explanations))
+            state.total_mean_distances.append(mean_square_distance(explanations))
+            state.accuracies.append(state.explainers[model_nr].compute_accuracy(state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
+
     accuracies = st.session_state.accuracies
     visualization_loaders = st.session_state.visualization_loaders
 
@@ -43,30 +88,34 @@ def run_evaluation_experiments():
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
+            st.write(f"Intra-Class Mean Square Distance of Class `{label}`:"
+                     f" `{state.intra_class_mean_distances[model_nr][label]:.3f}`")
+            st.write(f"Aggregated Mean Square Distance: `{state.total_mean_distances[model_nr]:.3f}`")
+            st.write(f"accuracy: {accuracies[model_nr]}")
 
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
-            # TODO
-            # ics = inter_class_similarity(explanations, labels) # don't compute it here, only access it.
-            # st.markdown(f"Euclidean ICS of label {label}: {ics}")
-            # st.markdown(f"Mean Euclidean ICS: {mean_ics}") # same thing as for the accuracy.
-            st.write(f"accuracy: {accuracies[model_nr]}")
             state.explainers[model_nr].explanation_mode = explanation_mode
             f" Explanation Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
-            explanations = state.explainers[model_nr].get_explanation_batch(inputs, labels)
+            explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels)
 
-            explanations = transform(explanations, "unnormalize")
+            explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(2):
-                st.image(transforms.ToPILImage()(explanations[i][0].squeeze_(0)), width=100, output_format='PNG')
-
-
-@st.cache
-def compute_accuracies(explainers, test_loader: DataLoader[Any]) -> List[float]:
-    return [explainer.compute_accuracy(test_loader, n_batches=len(test_loader)) for explainer in explainers]
+                st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=100, output_format='PNG')
 
 
 def transform(images: Tensor, mode: str) -> Tensor:
+    """Normalizes or unnormalizes images
+
+    If the images are already normalized/unnormalized, leave them unchanged.
+
+    :param images: images that shall be transformed.
+    :param mode: "unnormalize" or "normalize" respectively if the images are supposed to be normalized or unnormalized.
+
+    :returns: transformed images
+    """
+
     # check if images are currently normalized or not
     normalized = not (images >= 0).all()
 
@@ -110,7 +159,7 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
     # get the full 10000 MNIST test samples
     loaders = utils.load_data(n_training_samples=1,
                               n_critic_samples=1,
-                              n_test_samples=10000,
+                              n_test_samples=100,
                               batch_size=100,
                               test_batch_size=100)
 
@@ -119,8 +168,7 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
 
 def get_empty_explainer(device, explanation_mode) -> Explainer:
     return Explainer(device=device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
-                          rtpt=None, model_path="", explanation_mode=explanation_mode)
-
+                     rtpt=None, model_path="", explanation_mode=explanation_mode)
 
 
 if __name__ == '__main__':
