@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Tuple, List
+from typing import Any, Tuple, List, Dict
 
 import streamlit as st
 import torch
@@ -18,6 +18,7 @@ def run_evaluation_experiments():
 
     Expects that the arguments are the same as for the model that should be evaluated"""
 
+    modes = ["gradient", "input_x_gradient", "input"]
     if 'explainers' not in st.session_state:
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
 
@@ -33,13 +34,18 @@ def run_evaluation_experiments():
         state.aggregated_mean_distances = []
 
         for model_nr in range(2):
-            # first, get  all explanations of the test set
-            labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
-                                                                                      state.test_loader)
-            explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
-
-            state.intra_class_mean_distances.append(intra_class_mean_square_distances(labeled_explanations))
-            state.aggregated_mean_distances.append(mean_square_distance(explanations))
+            intra_class_mean_distances_per_model: Dict[str,List[float]] = {}
+            aggregated_mean_distance_per_model: Dict[str,float] = {}
+            for mode in modes:
+                # first, get  all explanations/inputs of the test set
+                labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
+                                                                                          state.test_loader,
+                                                                                          mode)
+                explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
+                intra_class_mean_distances_per_model[mode] = intra_class_mean_square_distances(labeled_explanations)
+                aggregated_mean_distance_per_model[mode] = mean_square_distance(explanations)
+            state.intra_class_mean_distances.append(intra_class_mean_distances_per_model)
+            state.aggregated_mean_distances.append(aggregated_mean_distance_per_model)
 
             state.accuracies.append(state.explainers[model_nr].compute_accuracy(state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
@@ -50,10 +56,7 @@ def run_evaluation_experiments():
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
 
     explanation_mode = st.sidebar.select_slider(label="Explanation Mode",
-                                                options=["gradient",
-                                                         "input_x_gradient",
-                                                         "integrated_gradient",
-                                                         "input_x_integrated_gradient"])
+                                                options=modes)
 
     inputs, labels = iter(visualization_loaders[label]).__next__()
 
@@ -77,10 +80,10 @@ def run_evaluation_experiments():
             st.write(f"### Model {model_nr}: Trained on {state.explainers[model_nr].explanation_mode}")
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             st.write(f"accuracy: `{accuracies[model_nr]}`")
-            st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {state.explainers[model_nr].explanation_mode}:"
-                     f" `{state.intra_class_mean_distances[model_nr][label]:.3f}`")
-            mean_dist = mean(state.intra_class_mean_distances[model_nr])
-            aggregated = state.aggregated_mean_distances[model_nr]
+            st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {explanation_mode}:"
+                     f" `{state.intra_class_mean_distances[model_nr][explanation_mode][label]:.3f}`")
+            mean_dist = mean(state.intra_class_mean_distances[model_nr][explanation_mode])
+            aggregated = state.aggregated_mean_distances[model_nr][explanation_mode]
             st.write(f"Intra-Class MSD, averaged over classes `{mean_dist:.3f}`")
             st.write(f"Aggregated Mean Square Distance: `{aggregated:.3f}`")
             st.write(f"Ratio {mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}")
@@ -140,10 +143,8 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
     cfg, device, *_ = utils.setup([], eval_mode=True)
 
     model_paths = ["fixed_testset_default_aso.pt", "pretrained_model.pt"]
-    explainers: List[Explainer] = []
-    explainers.append(get_empty_explainer(device=device, explanation_mode="input_x_gradient"))
-    explainers.append(get_empty_explainer(device=device, explanation_mode="input"))
-    # explainers.append(get_empty_explainer(device=device, explanation_mode="input"))
+    explainers: List[Explainer] = [get_empty_explainer(device=device, explanation_mode="input_x_gradient"),
+                                   get_empty_explainer(device=device, explanation_mode="input")]
 
     for i in range(2):
         explainers[i].load_state(f"models/{model_paths[i]}")
@@ -159,11 +160,11 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
     return explainers, loaders.test, loaders.visualization, device
 
 
-def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader) -> List[Tuple[Tensor, int]]:
+def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
     """get all explanations together with the labels, and don't combine them into batches."""
     labeled_explanations = []
     for inputs, labels in test_loader:
-        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels))
+        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels, mode))
         labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
         labeled_explanations.extend(labeled_explanation_batch)
     return labeled_explanations
