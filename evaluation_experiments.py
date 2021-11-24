@@ -20,10 +20,18 @@ def run_evaluation_experiments():
 
     if 'explainers' not in st.session_state:
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
+
+        # compute and save the input mean distances
+        data_as_list: List[Tuple[Tensor, int]] = data_to_list(state.test_loader)
+        input_list: List[Tensor] = [x for [x, _] in data_as_list]
+        state.input_intra_class_mean_distances = intra_class_mean_square_distances(data_as_list)
+        state.input_aggregated_mean_distance = mean_square_distance(input_list)
+
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
         state.intra_class_mean_distances = []
-        state.total_mean_distances = []
+        state.aggregated_mean_distances = []
+
         for model_nr in range(2):
             # first, get  all explanations of the test set
             labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
@@ -31,7 +39,8 @@ def run_evaluation_experiments():
             explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
 
             state.intra_class_mean_distances.append(intra_class_mean_square_distances(labeled_explanations))
-            state.total_mean_distances.append(mean_square_distance(explanations))
+            state.aggregated_mean_distances.append(mean_square_distance(explanations))
+
             state.accuracies.append(state.explainers[model_nr].compute_accuracy(state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
 
@@ -50,7 +59,13 @@ def run_evaluation_experiments():
 
     inputs = transform(inputs, "unnormalize")
     for i in range(2):
-        st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=100, output_format='PNG')
+        st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=200, output_format='PNG')
+
+    st.write(f"Intra-Class Mean Square Distance of Class `{label}` on input:"
+             f" `{state.input_intra_class_mean_distances[label]:.3f}`")
+    st.write(f"Intra-Class MSD, averaged over classes on input: `{mean(state.input_intra_class_mean_distances):.3f}`")
+    st.write(f"Aggregated Mean Square Distance on input: `{state.input_aggregated_mean_distance:.3f}`")
+
 
     column_1, column_2 = st.columns(2)
     column_1.write(f"### Model 1: Trained on {state.explainers[1].explanation_mode}")
@@ -58,14 +73,15 @@ def run_evaluation_experiments():
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
-            st.write(f"Intra-Class Mean Square Distance of Class `{label}`:"
+            st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {state.explainers[model_nr].explanation_mode}:"
                      f" `{state.intra_class_mean_distances[model_nr][label]:.3f}`")
             st.write(f"Intra-Class MSD, averaged over classes `{mean(state.intra_class_mean_distances[model_nr]):.3f}`")
-            st.write(f"Aggregated Mean Square Distance: `{state.total_mean_distances[model_nr]:.3f}`")
+            st.write(f"Aggregated Mean Square Distance: `{state.aggregated_mean_distances[model_nr]:.3f}`")
             st.write(f"accuracy: `{accuracies[model_nr]}`")
 
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             state.explainers[model_nr].explanation_mode = explanation_mode
+            # TODO instead of changing this, use it as an input.
             f" Explanation Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
@@ -73,7 +89,7 @@ def run_evaluation_experiments():
 
             explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(2):
-                st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=100, output_format='PNG')
+                st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=200, output_format='PNG')
 
 
 def transform(images: Tensor, mode: str) -> Tensor:
@@ -147,6 +163,14 @@ def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader) -> L
     return labeled_explanations
 
 
+def data_to_list(loader: DataLoader) -> List[Tuple[Tensor, int]]:
+    data = []
+    for inputs, labels in loader:
+        labeled_batch: List[Tuple[Tensor, int]] = list(zip(list(inputs), list(labels)))
+        data.extend(labeled_batch)
+    return data
+
+
 def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
     """sorts the points by their labels, and returns a list of the mean square distances by label """
     intraclass_mean_square_distances = []
@@ -175,18 +199,3 @@ def get_empty_explainer(device, explanation_mode) -> Explainer:
 
 if __name__ == '__main__':
     run_evaluation_experiments()
-
-# def get_model_path(cfg: SimpleArgumentParser):
-#     # check if there is a model with the right name.
-#     cfg_string = utils.config_string(cfg)
-#     date_len: int = len(utils.date_time_string())
-#     cfg_string = cfg_string[0:-date_len]  # ignore date at the end of config string
-#     for model_name in os.listdir("models"):
-#         if model_name.startswith(cfg_string):
-#             return model_name
-#     # otherwise fall back to pretrained model
-#     pretrained_path = 'pretrained_model.pt'
-#     if pretrained_path in os.listdir("models"):
-#         return pretrained_path
-#
-#     raise ValueError(f"no model with name {cfg_string}_<date>.pt found, nor pretrained model.")
