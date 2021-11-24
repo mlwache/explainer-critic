@@ -63,29 +63,32 @@ def run_evaluation_experiments():
 
     st.write(f"Intra-Class Mean Square Distance of Class `{label}` on input:"
              f" `{state.input_intra_class_mean_distances[label]:.3f}`")
-    st.write(f"Intra-Class MSD, averaged over classes on input: `{mean(state.input_intra_class_mean_distances):.3f}`")
-    st.write(f"Aggregated Mean Square Distance on input: `{state.input_aggregated_mean_distance:.3f}`")
+    input_mean_dist = mean(state.input_intra_class_mean_distances)
+    input_aggregated_dist = state.input_aggregated_mean_distance
+    st.write(f"Intra-Class MSD, averaged over classes on input: `{input_mean_dist:.3f}`")
+    st.write(f"Aggregated Mean Square Distance on input: `{input_aggregated_dist:.3f}`")
+    st.write(f"Ratio {input_mean_dist:.3f}/{input_aggregated_dist:.3f} = {input_mean_dist/input_aggregated_dist:.3f}")
 
 
     column_1, column_2 = st.columns(2)
-    column_1.write(f"### Model 1: Trained on {state.explainers[1].explanation_mode}")
-    column_2.write("### Model 2: Trained on input")
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
+            st.write(f"### Model {model_nr}: Trained on {state.explainers[model_nr].explanation_mode}")
+            f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
+            st.write(f"accuracy: `{accuracies[model_nr]}`")
             st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {state.explainers[model_nr].explanation_mode}:"
                      f" `{state.intra_class_mean_distances[model_nr][label]:.3f}`")
-            st.write(f"Intra-Class MSD, averaged over classes `{mean(state.intra_class_mean_distances[model_nr]):.3f}`")
-            st.write(f"Aggregated Mean Square Distance: `{state.aggregated_mean_distances[model_nr]:.3f}`")
-            st.write(f"accuracy: `{accuracies[model_nr]}`")
+            mean_dist = mean(state.intra_class_mean_distances[model_nr])
+            aggregated = state.aggregated_mean_distances[model_nr]
+            st.write(f"Intra-Class MSD, averaged over classes `{mean_dist:.3f}`")
+            st.write(f"Aggregated Mean Square Distance: `{aggregated:.3f}`")
+            st.write(f"Ratio {mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}")
 
-            f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
-            state.explainers[model_nr].explanation_mode = explanation_mode
-            # TODO instead of changing this, use it as an input.
             f" Explanation Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
-            explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels)
+            explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels, explanation_mode)
 
             explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(2):
@@ -138,8 +141,11 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
 
     model_paths = ["fixed_testset_default_aso.pt", "pretrained_model.pt"]
     explainers: List[Explainer] = []
+    explainers.append(get_empty_explainer(device=device, explanation_mode="input_x_gradient"))
+    explainers.append(get_empty_explainer(device=device, explanation_mode="input"))
+    # explainers.append(get_empty_explainer(device=device, explanation_mode="input"))
+
     for i in range(2):
-        explainers.append(get_empty_explainer(device=device, explanation_mode=cfg.explanation_mode))
         explainers[i].load_state(f"models/{model_paths[i]}")
         explainers[i].classifier.eval()
 
