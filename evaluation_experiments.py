@@ -22,12 +22,6 @@ def run_evaluation_experiments():
     if 'explainers' not in st.session_state:
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
 
-        # compute and save the input mean distances
-        data_as_list: List[Tuple[Tensor, int]] = data_to_list(state.test_loader)
-        input_list: List[Tensor] = [x for [x, _] in data_as_list]
-        state.input_intra_class_mean_distances = intra_class_mean_square_distances(data_as_list)
-        state.input_aggregated_mean_distance = mean_square_distance(input_list)
-
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
         state.intra_class_mean_distances = []
@@ -55,29 +49,17 @@ def run_evaluation_experiments():
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
 
-    explanation_mode = st.sidebar.select_slider(label="Explanation Mode",
+    explanation_mode = st.sidebar.select_slider(label="Mode",
                                                 options=modes)
 
     inputs, labels = iter(visualization_loaders[label]).__next__()
-
-    inputs = transform(inputs, "unnormalize")
-    for i in range(2):
-        st.image(transforms.ToPILImage()(inputs[i][0].squeeze_(0)), width=200, output_format='PNG')
-
-    st.write(f"Intra-Class Mean Square Distance of Class `{label}` on input:"
-             f" `{state.input_intra_class_mean_distances[label]:.3f}`")
-    input_mean_dist = mean(state.input_intra_class_mean_distances)
-    input_aggregated_dist = state.input_aggregated_mean_distance
-    st.write(f"Intra-Class MSD, averaged over classes on input: `{input_mean_dist:.3f}`")
-    st.write(f"Aggregated Mean Square Distance on input: `{input_aggregated_dist:.3f}`")
-    st.write(f"Ratio {input_mean_dist:.3f}/{input_aggregated_dist:.3f} = {input_mean_dist/input_aggregated_dist:.3f}")
-
 
     column_1, column_2 = st.columns(2)
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
-            st.write(f"### Model {model_nr}: Trained on {state.explainers[model_nr].explanation_mode}")
+            st.write(f"### Model {model_nr} ")
+            st.write(f"Trained on: `{state.explainers[model_nr].explanation_mode}`")
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             st.write(f"accuracy: `{accuracies[model_nr]}`")
             st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {explanation_mode}:"
@@ -88,7 +70,7 @@ def run_evaluation_experiments():
             st.write(f"Aggregated Mean Square Distance: `{aggregated:.3f}`")
             st.write(f"Ratio {mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}")
 
-            f" Explanation Mode: `{explanation_mode}`"
+            f" Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
             explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels, explanation_mode)
@@ -170,14 +152,6 @@ def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode
     return labeled_explanations
 
 
-def data_to_list(loader: DataLoader) -> List[Tuple[Tensor, int]]:
-    data = []
-    for inputs, labels in loader:
-        labeled_batch: List[Tuple[Tensor, int]] = list(zip(list(inputs), list(labels)))
-        data.extend(labeled_batch)
-    return data
-
-
 def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
     """sorts the points by their labels, and returns a list of the mean square distances by label """
     intraclass_mean_square_distances = []
@@ -190,9 +164,7 @@ def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) 
 def mean_square_distance(points: List[Tensor]) -> float:
     """computes the mean square distance to the mean of a cluster of points"""
     points = torch.stack(points)
-    # TODO check dims
     mean_point = torch.mean(points, dim=0)
-    # TODO show mean point
     differences_to_mean = points - mean_point
     # take the l_2 distance along the dimensions of the image
     l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
