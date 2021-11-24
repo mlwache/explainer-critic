@@ -256,21 +256,26 @@ class Explainer:
         images[images < 0] = 0
         return ImageHandler.rescale_to_zero_one(images)
 
-    def get_explanation_batch(self, inputs: Tensor, labels: Tensor) -> Tensor:
-        if self.explanation_mode == "gradient" or self.explanation_mode == "input_x_gradient":
+    def get_explanation_batch(self, inputs: Tensor, labels: Tensor, explanation_mode: Optional[str] = None) -> Tensor:
+        if explanation_mode is None:
+            explanation_mode = self.explanation_mode
+
+        if explanation_mode == "gradient" or explanation_mode == "input_x_gradient":
             input_gradient = self.input_gradient(inputs, labels)
             clipped_rescaled_input_gradient = self.clip_and_rescale(input_gradient)
-            if self.explanation_mode == "input_x_gradient":
+            if explanation_mode == "input_x_gradient":
                 return clipped_rescaled_input_gradient * inputs
             else:
                 return clipped_rescaled_input_gradient
-        elif self.explanation_mode == "integrated_gradient" or self.explanation_mode == "input_x_integrated_gradient":
+        elif explanation_mode == "integrated_gradient" or explanation_mode == "input_x_integrated_gradient":
             integrated_gradient = self.integrated_gradient(inputs, labels)
             clipped_rescaled_integrated_gradient = self.clip_and_rescale(integrated_gradient)
             if self.explanation_mode == "input_x_integrated_gradient":
                 return clipped_rescaled_integrated_gradient * inputs
             else:
                 return clipped_rescaled_integrated_gradient
+        elif explanation_mode == "input":
+            return inputs
         else:
             raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
 
