@@ -44,6 +44,7 @@ class Explainer:
         self.rtpt = rtpt
         self.model_path = model_path
         self.explanation_mode = explanation_mode
+        self.critic: Optional[Critic] = None
 
         self.classifier = Net().to(device)
 
@@ -159,17 +160,17 @@ class Explainer:
 
     def train_critic_on_explanations(self, critic_lr: float):
 
-        critic = Critic(explanation_mode=self.explanation_mode,
-                        device=self.device,
-                        critic_loader=self.loaders.critic,
-                        writer=self.logging.writer if self.logging else None,
-                        log_interval_critic=self.logging.critic_log_interval if self.logging else None)
+        self.critic = Critic(explanation_mode=self.explanation_mode,
+                             device=self.device,
+                             critic_loader=self.loaders.critic,
+                             writer=self.logging.writer if self.logging else None,
+                             log_interval_critic=self.logging.critic_log_interval if self.logging else None)
         explanations = []
         for inputs, labels in self.loaders.critic:
             explanations.append(self.get_explanation_batch(inputs, labels))
 
         critic_mean_loss: float
-        *_, critic_mean_loss = critic.train(explanations, critic_lr)
+        *_, critic_mean_loss = self.critic.train(explanations, critic_lr)
 
         return critic_mean_loss
 
@@ -286,12 +287,24 @@ class Explainer:
     def log_accuracy(self):
         global_step = global_vars.global_step
         training_accuracy = compute_accuracy(self.classifier, self.loaders.train, self.logging.n_test_batches)
-        test_accuracy = compute_accuracy(self.classifier, self.loaders.test, self.logging.n_test_batches)
-        print(colored(0, 0, 200, f'accuracy training: {training_accuracy}, accuracy testing: {test_accuracy:.3f}'))
+        test_accuracy = compute_accuracy(self.classifier, self.loaders.test)
+        if self.critic:
+            critic_test_accuracy = compute_accuracy(self.critic.classifier, self.loaders.test)
+            critic_training_accuracy = compute_accuracy(self.critic.classifier, self.loaders.critic)
+        else:
+            critic_test_accuracy = 0
+            critic_training_accuracy = 0
+        print(colored(0, 0, 200, f'accuracy training: {training_accuracy:3f}, accuracy testing: {test_accuracy:.3f}, '
+                                 f'accuracy critic training:{critic_training_accuracy:3f}, accuracy critic testing:'
+                                 f'{critic_test_accuracy:3f}'))
         if self.logging:
             self.logging.writer.add_scalar("Explainer_Training/Training_Accuracy", training_accuracy,
                                            global_step=global_step)
             self.logging.writer.add_scalar("Explainer_Training/Test_Accuracy", test_accuracy,
+                                           global_step=global_step)
+            self.logging.writer.add_scalar("Critic_Training/Training_Accuracy", critic_training_accuracy,
+                                           global_step=global_step)
+            self.logging.writer.add_scalar("Critic_Training/Test_Accuracy", critic_test_accuracy,
                                            global_step=global_step)
 
     def initialize_optimizer(self, learning_rate):
