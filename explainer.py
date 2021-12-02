@@ -98,7 +98,8 @@ class Explainer:
               n_epochs: int,
               lr_scheduling: bool,
               explanation_loss_weight: float,
-              critic_lr: Optional[float]
+              critic_lr: Optional[float],
+              shuffle_critic: bool = False
               ) -> Tuple[Loss, Loss]:
 
         if self.loaders is None or self.optimizer_type is None:
@@ -125,7 +126,8 @@ class Explainer:
                 if critic_lr is not None:  # if we are not in pretraining
 
                     # this will add to the gradients of the explainer classifier's weights
-                    mean_critic_loss = self.train_critic_on_explanations(critic_lr)
+                    mean_critic_loss = self.train_critic_on_explanations(critic_lr=critic_lr,
+                                                                         shuffle_critic=shuffle_critic)
 
                     # however, as the gradients of the critic loss are added in each critic step,
                     # they are divided by the length of the critic set so the length of the critic set does
@@ -158,13 +160,14 @@ class Explainer:
         self.terminate_writer()
         return start_classification_loss, end_classification_loss
 
-    def train_critic_on_explanations(self, critic_lr: float):
+    def train_critic_on_explanations(self, critic_lr: float, shuffle_critic: bool):
 
         self.critic = Critic(explanation_mode=self.explanation_mode,
                              device=self.device,
                              critic_loader=self.loaders.critic,
                              writer=self.logging.writer if self.logging else None,
-                             log_interval_critic=self.logging.critic_log_interval if self.logging else None)
+                             log_interval_critic=self.logging.critic_log_interval if self.logging else None,
+                             shuffle_data=shuffle_critic)
         explanations = []
         for inputs, labels in self.loaders.critic:
             explanations.append(self.get_explanation_batch(inputs, labels))
@@ -199,8 +202,13 @@ class Explainer:
                   f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
 
     def train_from_args(self, args: SimpleArgumentParser):
-        return self.train(args.learning_rate, args.learning_rate_step, args.n_epochs,
-                          args.lr_scheduling, args.explanation_loss_weight, args.learning_rate_critic)
+        return self.train(learning_rate=args.learning_rate,
+                          learning_rate_step=args.learning_rate_step,
+                          n_epochs=args.n_epochs,
+                          lr_scheduling=args.lr_scheduling,
+                          explanation_loss_weight=args.explanation_loss_weight,
+                          critic_lr=args.learning_rate_critic,
+                          shuffle_critic=args.shuffle_critic)
 
     def pretrain_from_args(self, args: SimpleArgumentParser):
         return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.lr_scheduling,

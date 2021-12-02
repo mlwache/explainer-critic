@@ -21,12 +21,15 @@ class Critic:
                  device: str,
                  critic_loader: DataLoader[Any],
                  writer: Optional[SummaryWriter],
-                 log_interval_critic: Optional[int]):
+                 log_interval_critic: Optional[int],
+                 shuffle_data: bool
+                 ):
         self.classifier = Net().to(device)
         self.critic_loader = critic_loader
         self.writer = writer
         self.log_interval_critic = log_interval_critic
         self.explanation_mode = explanation_mode
+        self.shuffle_data: bool = shuffle_data
 
     def train(self, explanations: List[Tensor], critic_learning_rate: float) -> Tuple[float, float, float]:
 
@@ -34,7 +37,8 @@ class Critic:
         # shuffle the data before each critic training.
         if explanations:
             zipped = list(zip(explanations, list(self.critic_loader)))
-            random.shuffle(zipped)
+            if self.shuffle_data:
+                random.shuffle(zipped)
             permuted_explanations, permuted_critic_set = zip(*zipped)
         else:
             permuted_critic_set = list(self.critic_loader)
