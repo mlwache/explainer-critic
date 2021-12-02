@@ -1,5 +1,5 @@
 import os
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 import torch
 from captum.attr import InputXGradient
@@ -9,6 +9,7 @@ from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
+from torch.utils.data import DataLoader
 
 import global_vars
 from config import SimpleArgumentParser
@@ -168,14 +169,17 @@ class Explainer:
                              writer=self.logging.writer if self.logging else None,
                              log_interval_critic=self.logging.critic_log_interval if self.logging else None,
                              shuffle_data=shuffle_critic)
-        explanations = []
-        for inputs, labels in self.loaders.critic:
-            explanations.append(self.get_explanation_batch(inputs, labels))
-
+        explanation_batches = self.get_explanation_batches(self.loaders.critic)
         critic_mean_loss: float
-        *_, critic_mean_loss = self.critic.train(explanations, critic_lr)
+        *_, critic_mean_loss = self.critic.train(explanation_batches, critic_lr)
 
         return critic_mean_loss
+
+    def get_explanation_batches(self, dataloader: DataLoader) -> List[Tensor]:
+        explanation_batches = []
+        for inputs, labels in dataloader:
+            explanation_batches.append(self.get_explanation_batch(inputs, labels))
+        return explanation_batches
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
                    n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_total_weight: float):
