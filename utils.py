@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass
 from datetime import datetime
 from statistics import mean
-from typing import Tuple, Any, Optional, List
+from typing import Tuple, Any, Optional, List, Union
 
 import numpy as np
 import torch.cuda
@@ -232,15 +232,15 @@ def smooth_end_losses(losses: List[float]) -> float:
         return losses[-1]
 
 
-def compute_accuracy(classifier: nn.Module, data_loader: DataLoader[Any], n_batches: Optional[int] = None):
+def compute_accuracy(classifier: nn.Module, data: Union[DataLoader, List[List[Tensor]]], n_batches: Optional[int] = None):
     if n_batches is None:
-        n_batches = len(data_loader)
+        n_batches = len(data)
     n_correct_samples: int = 0
     n_test_samples_total: int = 0
 
     classifier.eval()
     with torch.no_grad():
-        for i, (images, labels) in enumerate(data_loader):
+        for i, (images, labels) in enumerate(data):
             if i >= n_batches:  # only test on a set of the test set size, even for training accuracy.
                 break
 

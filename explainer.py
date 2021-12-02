@@ -169,17 +169,17 @@ class Explainer:
                              writer=self.logging.writer if self.logging else None,
                              log_interval_critic=self.logging.critic_log_interval if self.logging else None,
                              shuffle_data=shuffle_critic)
-        explanation_batches = self.get_explanation_batches(self.loaders.critic)
+        explanation_batches = [x for [x,_] in self.get_labeled_explanation_batches(self.loaders.critic)]
         critic_mean_loss: float
         *_, critic_mean_loss = self.critic.train(explanation_batches, critic_lr)
 
         return critic_mean_loss
 
-    def get_explanation_batches(self, dataloader: DataLoader) -> List[Tensor]:
-        explanation_batches = []
+    def get_labeled_explanation_batches(self, dataloader: DataLoader) -> List[List[Tensor]]:
+        labeled_explanation_batches = []
         for inputs, labels in dataloader:
-            explanation_batches.append(self.get_explanation_batch(inputs, labels))
-        return explanation_batches
+            labeled_explanation_batches.append([self.get_explanation_batch(inputs, labels), labels])
+        return labeled_explanation_batches
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
                    n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_total_weight: float):
