@@ -38,8 +38,11 @@ class Critic:
         if explanations:
             zipped = list(zip(explanations, list(self.critic_loader)))
             if self.shuffle_data:
-                random.shuffle(zipped)
-            permuted_explanations, permuted_critic_set = zip(*zipped)
+                shuffled_zipped = random.sample(zipped, len(zipped))
+            else:
+                shuffled_zipped = zipped
+
+            permuted_explanations, permuted_critic_set = zip(*shuffled_zipped)
         else:
             permuted_critic_set = list(self.critic_loader)
             random.shuffle(permuted_critic_set)
