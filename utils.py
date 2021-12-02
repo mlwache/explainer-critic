@@ -232,7 +232,9 @@ def smooth_end_losses(losses: List[float]) -> float:
         return losses[-1]
 
 
-def compute_accuracy(classifier: nn.Module, data: Union[DataLoader, List[List[Tensor]]], n_batches: Optional[int] = None):
+def compute_accuracy(classifier: nn.Module,
+                     data: Union[DataLoader, List[List[Tensor]]],
+                     n_batches: Optional[int] = None):
     if n_batches is None:
         n_batches = len(data)
     n_correct_samples: int = 0
