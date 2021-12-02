@@ -41,7 +41,7 @@ def run_evaluation_experiments():
             state.intra_class_variances.append(intra_class_variances_per_model)
             state.aggregated_variances.append(aggregated_variance_per_model)
 
-            state.accuracies.append(state.explainers[model_nr].compute_accuracy(state.test_loader))
+            state.accuracies.append(utils.compute_accuracy(state.explainers[model_nr].classifier, state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
 
     accuracies = st.session_state.accuracies

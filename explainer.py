@@ -1,5 +1,5 @@
 import os
-from typing import Any, Tuple, Optional
+from typing import Tuple, Optional
 
 import torch
 from captum.attr import InputXGradient
@@ -9,13 +9,12 @@ from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import StepLR
-from torch.utils.data.dataloader import DataLoader
 
 import global_vars
 from config import SimpleArgumentParser
 from critic import Critic
 from net import Net
-from utils import Logging
+from utils import Logging, compute_accuracy
 from utils import colored, Loaders
 from visualization import ImageHandler
 
@@ -284,32 +283,10 @@ class Explainer:
         _, prediction = torch.max(outputs, 1)
         return prediction
 
-    def compute_accuracy(self, data_loader: DataLoader[Any], n_batches: Optional[int] = None):
-        if n_batches is None:
-            n_batches = len(data_loader)
-        n_correct_samples: int = 0
-        n_test_samples_total: int = 0
-
-        self.classifier.eval()
-        with torch.no_grad():
-            for i, (images, labels) in enumerate(data_loader):
-                if i >= n_batches:  # only test on a set of the test set size, even for training accuracy.
-                    break
-
-                outputs = self.classifier(images)
-
-                # the class with the highest output is what we choose as prediction
-                _, predicted = torch.max(outputs.data, dim=1)
-                n_test_samples_total += labels.size()[0]
-                n_correct_samples += (predicted == labels).sum().item()
-        total_accuracy = n_correct_samples / n_test_samples_total
-        self.classifier.train()
-        return total_accuracy
-
     def log_accuracy(self):
         global_step = global_vars.global_step
-        training_accuracy = self.compute_accuracy(self.loaders.train, self.logging.n_test_batches)
-        test_accuracy = self.compute_accuracy(self.loaders.test, self.logging.n_test_batches)
+        training_accuracy = compute_accuracy(self.classifier, self.loaders.train, self.logging.n_test_batches)
+        test_accuracy = compute_accuracy(self.classifier, self.loaders.test, self.logging.n_test_batches)
         print(colored(0, 0, 200, f'accuracy training: {training_accuracy}, accuracy testing: {test_accuracy:.3f}'))
         if self.logging:
             self.logging.writer.add_scalar("Explainer_Training/Training_Accuracy", training_accuracy,

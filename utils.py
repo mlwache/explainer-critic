@@ -10,7 +10,7 @@ import numpy as np
 import torch.cuda
 import torch.multiprocessing
 from rtpt import RTPT
-from torch import Tensor
+from torch import Tensor, nn
 from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.datasets import MNIST
@@ -230,3 +230,26 @@ def smooth_end_losses(losses: List[float]) -> float:
     else:
         print("not enough losses to smooth")
         return losses[-1]
+
+
+def compute_accuracy(classifier: nn.Module, data_loader: DataLoader[Any], n_batches: Optional[int] = None):
+    if n_batches is None:
+        n_batches = len(data_loader)
+    n_correct_samples: int = 0
+    n_test_samples_total: int = 0
+
+    classifier.eval()
+    with torch.no_grad():
+        for i, (images, labels) in enumerate(data_loader):
+            if i >= n_batches:  # only test on a set of the test set size, even for training accuracy.
+                break
+
+            outputs = classifier(images)
+
+            # the class with the highest output is what we choose as prediction
+            _, predicted = torch.max(outputs.data, dim=1)
+            n_test_samples_total += labels.size()[0]
+            n_correct_samples += (predicted == labels).sum().item()
+    total_accuracy = n_correct_samples / n_test_samples_total
+    classifier.train()
+    return total_accuracy
