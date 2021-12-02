@@ -58,17 +58,17 @@ def run_evaluation_experiments():
 
     for model_nr, column in enumerate([column_1, column_2]):  # compare two models
         with column:
-            st.write(f"### Model {model_nr} ")
-            st.write(f"Trained on: `{state.explainers[model_nr].explanation_mode}`")
+            f"### Model {model_nr} "
+            f"Trained on: `{state.explainers[model_nr].explanation_mode}`"
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
-            st.write(f"accuracy: `{accuracies[model_nr]}`")
+            f"accuracy: `{accuracies[model_nr]}`"
             st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {explanation_mode}:"
                      f" `{state.intra_class_mean_distances[model_nr][explanation_mode][label]:.3f}`")
             mean_dist = mean(state.intra_class_mean_distances[model_nr][explanation_mode])
             aggregated = state.aggregated_mean_distances[model_nr][explanation_mode]
-            st.write(f"Intra-Class MSD, averaged over classes `{mean_dist:.3f}`")
-            st.write(f"Aggregated Mean Square Distance: `{aggregated:.3f}`")
-            st.write(f"Ratio {mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}")
+            f"Intra-Class MSD, averaged over classes `{mean_dist:.3f}`"
+            f"Aggregated Mean Square Distance: `{aggregated:.3f}`"
+            f"Ratio `{mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}`"
 
             f" Mode: `{explanation_mode}`"
 
