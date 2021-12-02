@@ -19,27 +19,27 @@ def run_evaluation_experiments():
     Expects that the arguments are the same as for the model that should be evaluated"""
 
     modes = ["gradient", "input_x_gradient", "input"]
-    if 'explainers' not in st.session_state:
+    if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
         state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
 
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
-        state.intra_class_mean_distances = []
-        state.aggregated_mean_distances = []
+        state.intra_class_variances = []
+        state.aggregated_variances = []
 
         for model_nr in range(2):
-            intra_class_mean_distances_per_model: Dict[str,List[float]] = {}
-            aggregated_mean_distance_per_model: Dict[str,float] = {}
+            intra_class_variances_per_model: Dict[str, List[float]] = {}
+            aggregated_variance_per_model: Dict[str, float] = {}
             for mode in modes:
                 # first, get  all explanations/inputs of the test set
                 labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
                                                                                           state.test_loader,
                                                                                           mode)
                 explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
-                intra_class_mean_distances_per_model[mode] = intra_class_mean_square_distances(labeled_explanations)
-                aggregated_mean_distance_per_model[mode] = mean_square_distance(explanations)
-            state.intra_class_mean_distances.append(intra_class_mean_distances_per_model)
-            state.aggregated_mean_distances.append(aggregated_mean_distance_per_model)
+                intra_class_variances_per_model[mode] = intra_class_variances(labeled_explanations)
+                aggregated_variance_per_model[mode] = variance(explanations)
+            state.intra_class_variances.append(intra_class_variances_per_model)
+            state.aggregated_variances.append(aggregated_variance_per_model)
 
             state.accuracies.append(state.explainers[model_nr].compute_accuracy(state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
@@ -62,12 +62,12 @@ def run_evaluation_experiments():
             f"Trained on: `{state.explainers[model_nr].explanation_mode}`"
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             f"accuracy: `{accuracies[model_nr]}`"
-            st.write(f"Intra-Class Mean Square Distance of Class `{label}` on {explanation_mode}:"
-                     f" `{state.intra_class_mean_distances[model_nr][explanation_mode][label]:.3f}`")
-            mean_dist = mean(state.intra_class_mean_distances[model_nr][explanation_mode])
-            aggregated = state.aggregated_mean_distances[model_nr][explanation_mode]
-            f"Intra-Class MSD, averaged over classes `{mean_dist:.3f}`"
-            f"Aggregated Mean Square Distance: `{aggregated:.3f}`"
+            st.write(f"Intra-Class Variance of Class `{label}` on {explanation_mode}:"
+                     f" `{state.intra_class_variances[model_nr][explanation_mode][label]:.3f}`")
+            mean_dist = mean(state.intra_class_variances[model_nr][explanation_mode])
+            aggregated = state.aggregated_variances[model_nr][explanation_mode]
+            f"Intra-Class Variance, averaged over classes `{mean_dist:.3f}`"
+            f"Aggregated Variance: `{aggregated:.3f}`"
             f"Ratio `{mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}`"
 
             f" Mode: `{explanation_mode}`"
@@ -152,17 +152,17 @@ def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode
     return labeled_explanations
 
 
-def intra_class_mean_square_distances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
-    """sorts the points by their labels, and returns a list of the mean square distances by label """
-    intraclass_mean_square_distances = []
+def intra_class_variances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
+    """sorts the points by their labels, and returns a list of the variances by label """
+    intraclass_variances = []
     for label in range(10):
         label_subset = [point for [point, lab] in labeled_points if lab == label]
-        intraclass_mean_square_distances.append(mean_square_distance(label_subset))
-    return intraclass_mean_square_distances
+        intraclass_variances.append(variance(label_subset))
+    return intraclass_variances
 
 
-def mean_square_distance(points: List[Tensor]) -> float:
-    """computes the mean square distance to the mean of a cluster of points"""
+def variance(points: List[Tensor]) -> float:
+    """computes the variance of a cluster of points"""
     points = torch.stack(points)
     mean_point = torch.mean(points, dim=0)
     differences_to_mean = points - mean_point
