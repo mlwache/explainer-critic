@@ -4,6 +4,7 @@ import torchvision
 from torch import Tensor
 from torch.utils.tensorboard import SummaryWriter
 
+import torch
 
 class ImageHandler:
 
@@ -15,9 +16,15 @@ class ImageHandler:
 
     @staticmethod
     def rescale_to_zero_one(images: Tensor):
+        """rescale the images to the range [0,1]
+
+         this assumes that all values are non-negative, and throws an error if they are not.
+         :param images: the images that shall be re-scaled
+         :returns: re-scaled images, each of which has at least one pixel with value 1.0"""
         assert (images >= 0).all(), "it's expected that all values are non-negative."
-        amplified_images: Tensor = images / images.max()
-        return amplified_images
+        maxima_for_each_image = images.max(dim=3, keepdim=True).values.max(dim=2, keepdim=True).values
+        re_scaled_images: Tensor = images.div(maxima_for_each_image)
+        return re_scaled_images
 
     @staticmethod
     def add_input_images(input_images: Tensor, caption: str = "some input images"):
