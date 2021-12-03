@@ -100,7 +100,7 @@ class Explainer:
               lr_scheduling: bool,
               explanation_loss_weight: float,
               critic_lr: Optional[float],
-              shuffle_critic: bool = False
+              shuffle_critic: bool = True
               ) -> Tuple[Loss, Loss]:
 
         if self.loaders is None or self.optimizer_type is None:
@@ -212,7 +212,7 @@ class Explainer:
                           lr_scheduling=args.lr_scheduling,
                           explanation_loss_weight=args.explanation_loss_weight,
                           critic_lr=args.learning_rate_critic,
-                          shuffle_critic=args.shuffle_critic)
+                          shuffle_critic=not args.disable_critic_shuffling)
 
     def pretrain_from_args(self, args: SimpleArgumentParser):
         return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.lr_scheduling,

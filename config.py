@@ -30,7 +30,7 @@ class SimpleArgumentParser(Tap):
     n_epochs: int = 40
     n_pretraining_epochs: int = 10
     # 10 episodes are enough to converge
-    shuffle_critic: bool = False
+    disable_critic_shuffling: bool = False
 
     log_interval: int = 1
     # in case some day explainer values seem too much (e.g. if Tensorboard is overburdened and slow).
