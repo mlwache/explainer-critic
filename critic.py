@@ -44,6 +44,7 @@ class Critic:
 
             permuted_explanations, permuted_critic_set = zip(*shuffled_zipped)
         else:
+            permuted_explanations = [] # if explanations are empty, then permuted explanations are also empty.
             permuted_critic_set = list(self.critic_loader)
             random.shuffle(permuted_critic_set)
 
@@ -53,7 +54,7 @@ class Critic:
         losses: List[float] = []
 
         for n_current_batch, (inputs, labels) in enumerate(permuted_critic_set):
-            losses.append(self._process_batch(critic_loss, explanations,
+            losses.append(self._process_batch(critic_loss, permuted_explanations,
                                               inputs, labels, n_current_batch,
                                               optimizer))
             global_vars.global_step += 1
