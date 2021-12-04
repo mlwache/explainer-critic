@@ -10,10 +10,11 @@ Loss = float
 
 
 def run_experiments(overriding_args: Optional[List] = None):
-    global_vars.global_step = 0
 
     print("Setting up experiments...")
     args, device, logging, rtpt = utils.setup(overriding_args)
+    # start at the negative pretraining iterations, so the logging of combined training starts at step zero.
+    global_vars.global_step = -(args.n_iterations - args.combined_iterations)
     loaders = utils.load_data_from_args(args)
 
     test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
