@@ -14,20 +14,19 @@ from explainer import Explainer
 
 
 def run_evaluation_experiments():
-    """Runs some experiments on the models that are already trained.
-
-    Expects that the arguments are the same as for the model that should be evaluated"""
-
+    """Runs some experiments on the models that are already trained."""
     modes = ["gradient", "input_x_gradient", "input"]
     if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
-        state.explainers, state.test_loader, state.visualization_loader, state.device = set_up_evaluation_experiments()
+        state.n_models = 3
+        state.explainers, state.test_loader, state.visualization_loader, state.device, state.model_names = \
+            set_up_evaluation_experiments(state.n_models)
 
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
         state.intra_class_variances = []
         state.aggregated_variances = []
 
-        for model_nr in range(2):
+        for model_nr in range(state.n_models):
             intra_class_variances_per_model: Dict[str, List[float]] = {}
             aggregated_variance_per_model: Dict[str, float] = {}
             for mode in modes:
@@ -54,11 +53,11 @@ def run_evaluation_experiments():
 
     inputs, labels = iter(visualization_loaders[label]).__next__()
 
-    column_1, column_2 = st.columns(2)
+    columns = st.columns(state.n_models)
 
-    for model_nr, column in enumerate([column_1, column_2]):  # compare two models
-        with column:
-            f"### Model {model_nr} "
+    for model_nr in range(state.n_models):  # compare two models
+        with columns[model_nr]:
+            f"### {state.model_names[model_nr][0:-3]} "
             f"Trained on: `{state.explainers[model_nr].explanation_mode}`"
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             f"accuracy: `{accuracies[model_nr]}`"
@@ -68,7 +67,7 @@ def run_evaluation_experiments():
             aggregated = state.aggregated_variances[model_nr][explanation_mode]
             f"Intra-Class Variance, averaged over classes `{mean_dist:.3f}`"
             f"Aggregated Variance: `{aggregated:.3f}`"
-            f"Ratio `{mean_dist:.3f}/{aggregated:.3f} = {mean_dist/aggregated:.3f}`"
+            f"Ratio `{aggregated:.3f}/{mean_dist:.3f} = {aggregated/mean_dist:.3f}`"
 
             f" Mode: `{explanation_mode}`"
 
@@ -105,7 +104,6 @@ def transform(images: Tensor, mode: str) -> Tensor:
         return images
 
 
-@st.cache(allow_output_mutation=True)
 def get_visualization_loaders():
     full_test_set = utils.FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
@@ -118,18 +116,28 @@ def get_visualization_loaders():
     return visualization_loaders
 
 
-@st.cache(allow_output_mutation=True)
-def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], DataLoader[Any], str]:
+def set_up_evaluation_experiments(n_models: int) -> Tuple[List[Explainer],
+                                                          DataLoader[Any],
+                                                          DataLoader[Any],
+                                                          str,
+                                                          List[str]]:
     device: str
     cfg: SimpleArgumentParser
     cfg, device, *_ = utils.setup([], eval_mode=True)
 
-    model_paths = ["fixed_testset_default_aso.pt", "pretrained_model.pt"]
-    explainers: List[Explainer] = [get_empty_explainer(device=device, explanation_mode="input_x_gradient"),
-                                   get_empty_explainer(device=device, explanation_mode="input")]
+    model_paths = ["trained_explainer.pt",
+                   "pre-trained.pt"]
 
-    for i in range(2):
-        explainers[i].load_state(f"models/{model_paths[i]}")
+    explainers: List[Explainer] = [get_empty_explainer(device=device, explanation_mode="input_x_gradient"),
+                                   get_empty_explainer(device=device, explanation_mode="input"),
+                                   get_empty_explainer(device=device, explanation_mode="nothing")]
+
+    for i in range(n_models):
+        if i < len(model_paths):
+            explainers[i].load_state(f"models/{model_paths[i]}")
+        else:
+            print("Not enough models paths specified, using un-trained model instead.")
+            model_paths.append("un-trained.pt")
         explainers[i].classifier.eval()
 
     # get the full 10000 MNIST test samples
@@ -139,7 +147,7 @@ def set_up_evaluation_experiments() -> Tuple[List[Explainer], DataLoader[Any], D
                               batch_size=100,
                               test_batch_size=100)
 
-    return explainers, loaders.test, loaders.visualization, device
+    return explainers, loaders.test, loaders.visualization, device, model_paths
 
 
 def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
