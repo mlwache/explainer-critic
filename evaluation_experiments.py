@@ -47,6 +47,7 @@ def run_evaluation_experiments():
     visualization_loaders = st.session_state.visualization_loaders
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
+    n_img = st.sidebar.slider(label="Number of Images to show", min_value=0, max_value=10, value=2, step=1)
 
     explanation_mode = st.sidebar.select_slider(label="Mode",
                                                 options=modes)
@@ -75,7 +76,7 @@ def run_evaluation_experiments():
             explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels, explanation_mode)
 
             explanation_batch = transform(explanation_batch, "unnormalize")
-            for i in range(2):
+            for i in range(n_img):
                 st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=200, output_format='PNG')
 
 
@@ -104,14 +105,15 @@ def transform(images: Tensor, mode: str) -> Tensor:
         return images
 
 
-def get_visualization_loaders():
+def get_visualization_loaders() -> List[DataLoader]:
+    """Returns a list of data loaders for visualization - one for each label"""
     full_test_set = utils.FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
-    # full_test_set.un_normalize()
     visualization_loaders = []
     for label in range(10):
-        subset = Subset(full_test_set, torch.where(full_test_set.targets == label)[0][:4])
-        visualization_loaders.append(DataLoader(subset, batch_size=2, num_workers=0))
+        # for visualization, we only need to load 10 images for each label, more will not be
+        subset = Subset(full_test_set, torch.where(full_test_set.targets == label)[0][:10])
+        visualization_loaders.append(DataLoader(subset, batch_size=10))
 
     return visualization_loaders
 
