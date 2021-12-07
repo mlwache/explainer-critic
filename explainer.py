@@ -161,24 +161,32 @@ class Explainer:
         self.terminate_writer()
         return start_classification_loss, end_classification_loss
 
-    def train_critic_on_explanations(self, critic_lr: float, shuffle_critic: bool):
+    def train_critic_on_explanations(self,
+                                     critic_lr: float,
+                                     shuffle_critic: bool,
+                                     explanation_mode: Optional[str] = None):
 
-        self.critic = Critic(explanation_mode=self.explanation_mode,
+        if explanation_mode is None:
+            explanation_mode = self.explanation_mode
+        self.critic = Critic(explanation_mode=explanation_mode,
                              device=self.device,
                              critic_loader=self.loaders.critic,
                              writer=self.logging.writer if self.logging else None,
                              log_interval_critic=self.logging.critic_log_interval if self.logging else None,
                              shuffle_data=shuffle_critic)
-        explanation_batches = [x for [x, _] in self.get_labeled_explanation_batches(self.loaders.critic)]
+        explanation_batches = [x for [x, _] in self.get_labeled_explanation_batches(self.loaders.critic,
+                                                                                    explanation_mode)]
         critic_mean_loss: float
         *_, critic_mean_loss = self.critic.train(explanation_batches, critic_lr)
 
         return critic_mean_loss
 
-    def get_labeled_explanation_batches(self, dataloader: DataLoader) -> List[List[Tensor]]:
+    def get_labeled_explanation_batches(self,
+                                        dataloader: DataLoader,
+                                        explanation_mode: Optional[str] = None) -> List[List[Tensor]]:
         labeled_explanation_batches = []
         for inputs, labels in dataloader:
-            labeled_explanation_batches.append([self.get_explanation_batch(inputs, labels), labels])
+            labeled_explanation_batches.append([self.get_explanation_batch(inputs, labels, explanation_mode), labels])
         return labeled_explanation_batches
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
