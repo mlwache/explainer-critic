@@ -18,7 +18,7 @@ def run_evaluation_experiments():
     modes = ["gradient", "input_x_gradient", "input"]
     if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
         state.n_models = 3
-        state.explainers, state.test_loader, state.visualization_loader, state.device, state.model_names = \
+        state.explainers, state.test_loader, state.device, state.model_names = \
             set_up_evaluation_experiments(state.n_models)
 
         # all of the following are lists, because I compute them for multiple models.
@@ -47,13 +47,12 @@ def run_evaluation_experiments():
     visualization_loaders = st.session_state.visualization_loaders
 
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
-    n_img = st.sidebar.slider(label="Number of Images to show", min_value=0, max_value=10, value=2, step=1)
+    n_img = st.sidebar.slider(label="Number of Images to show", min_value=1, max_value=10, value=2, step=1)
 
     explanation_mode = st.sidebar.select_slider(label="Mode",
                                                 options=modes)
 
-    inputs, labels = iter(visualization_loaders[label]).__next__()
-
+    inputs, labels = resize_batch(loader=visualization_loaders[label], new_batch_size=n_img)
     columns = st.columns(state.n_models)
 
     for model_nr in range(state.n_models):  # compare two models
@@ -78,6 +77,26 @@ def run_evaluation_experiments():
             explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(n_img):
                 st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=200, output_format='PNG')
+
+
+def resize_batch(loader: DataLoader, new_batch_size: int) -> Tuple[Tensor, Tensor]:
+    new_input_batch_list: List[Tensor] = []
+    new_label_batch_list: List[Tensor] = []
+    old_batch_size: int = loader.batch_size
+    for i, (input_batch, label_batch) in enumerate(loader):
+        if len(new_input_batch_list) + old_batch_size > new_batch_size:
+            # if adding another batch would lead to a higher batch size than the target bach size, only add a part.
+            new_label_batch_list.extend(list(label_batch)[0:new_batch_size % old_batch_size])
+            new_input_batch_list.extend(list(input_batch)[0:new_batch_size % old_batch_size])
+            break
+        new_input_batch_list.extend(list(input_batch))
+        new_label_batch_list.extend(list(label_batch))
+    new_input_batch: Tensor = torch.stack(new_input_batch_list)
+    new_label_batch: Tensor = torch.stack(new_label_batch_list)
+
+    assert len(new_label_batch) == new_batch_size, f"len={len(new_label_batch)}"
+
+    return new_input_batch, new_label_batch
 
 
 def transform(images: Tensor, mode: str) -> Tensor:
@@ -111,15 +130,14 @@ def get_visualization_loaders() -> List[DataLoader]:
     # loads the data to the ./data folder
     visualization_loaders = []
     for label in range(10):
-        # for visualization, we only need to load 10 images for each label, more will not be
+        # for visualization, we only need to load 10 images for each label, more would be confusing
         subset = Subset(full_test_set, torch.where(full_test_set.targets == label)[0][:10])
-        visualization_loaders.append(DataLoader(subset, batch_size=10))
+        visualization_loaders.append(DataLoader(subset, batch_size=2))
 
     return visualization_loaders
 
 
 def set_up_evaluation_experiments(n_models: int) -> Tuple[List[Explainer],
-                                                          DataLoader[Any],
                                                           DataLoader[Any],
                                                           str,
                                                           List[str]]:
@@ -149,7 +167,7 @@ def set_up_evaluation_experiments(n_models: int) -> Tuple[List[Explainer],
                               batch_size=100,
                               test_batch_size=100)
 
-    return explainers, loaders.test, loaders.visualization, device, model_paths
+    return explainers, loaders.test, device, model_paths
 
 
 def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
