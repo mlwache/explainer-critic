@@ -72,6 +72,7 @@ def run_evaluation_experiments():
             f" Mode: `{explanation_mode}`"
 
             inputs = transform(inputs, "normalize")
+            state.explainers[model_nr].classifier.eval()
             explanation_batch = state.explainers[model_nr].get_explanation_batch(inputs, labels, explanation_mode)
 
             explanation_batch = transform(explanation_batch, "unnormalize")
