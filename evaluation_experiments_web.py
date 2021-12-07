@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Tuple, List, Dict
+from typing import Any, Tuple, List, Dict, Optional
 
 import streamlit as st
 import torch
@@ -67,7 +67,7 @@ def run_evaluation_experiments():
             aggregated = state.aggregated_variances[model_nr][explanation_mode]
             f"Intra-Class Variance, averaged over classes `{mean_dist:.3f}`"
             f"Aggregated Variance: `{aggregated:.3f}`"
-            f"Ratio `{aggregated:.3f}/{mean_dist:.3f} = {aggregated/mean_dist:.3f}`"
+            f"Ratio `{aggregated:.3f}/{mean_dist:.3f} = {aggregated / mean_dist:.3f}`"
 
             f" Mode: `{explanation_mode}`"
 
@@ -138,21 +138,28 @@ def get_visualization_loaders() -> List[DataLoader]:
     return visualization_loaders
 
 
-def set_up_evaluation_experiments(n_models: int) -> Tuple[List[Explainer],
-                                                          DataLoader[Any],
-                                                          str,
-                                                          List[str]]:
+def set_up_evaluation_experiments(n_models: int,
+                                  run_name: Optional[str] = None,
+                                  loaders=None,
+                                  used_for_training=False,
+                                  ) -> Tuple[List[Explainer],
+                                             DataLoader[Any],
+                                             str,
+                                             List[str]]:
     device: str
     cfg: SimpleArgumentParser
-    cfg, device, *_ = utils.setup([], eval_mode=True)
+    cfg, device, logging, _ = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
 
     model_paths = ["trained_explainer.pt",
                    "pre-trained.pt"]
 
-    explainers: List[Explainer] = [get_empty_explainer(device=device, explanation_mode="input_x_gradient"),
-                                   get_empty_explainer(device=device, explanation_mode="input"),
-                                   get_empty_explainer(device=device, explanation_mode="nothing")]
-
+    explanation_modes = ["input_x_gradient",
+                         "input",
+                         "nothing"][0:n_models]
+    explainers: List[Explainer] = get_list_of_empty_explainers(device=device,
+                                                               explanation_modes=explanation_modes,
+                                                               logging=logging,
+                                                               loaders=loaders)
     for i in range(n_models):
         if i < len(model_paths):
             explainers[i].load_state(f"models/{model_paths[i]}")
@@ -200,9 +207,15 @@ def variance(points: List[Tensor]) -> float:
     return torch.mean(l_2_distances).item()
 
 
-def get_empty_explainer(device, explanation_mode) -> Explainer:
-    return Explainer(device=device, loaders=None, optimizer_type=None, logging=None, test_batch_to_visualize=None,
-                     rtpt=None, model_path="", explanation_mode=explanation_mode)
+def get_list_of_empty_explainers(device, explanation_modes, logging, loaders) -> List[Explainer]:
+    return [Explainer(device=device,
+                      loaders=loaders,
+                      optimizer_type=None,
+                      logging=logging,
+                      test_batch_to_visualize=None,
+                      rtpt=None,
+                      model_path="",
+                      explanation_mode=explanation_mode) for explanation_mode in explanation_modes]
 
 
 if __name__ == '__main__':
