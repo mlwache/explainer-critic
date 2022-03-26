@@ -144,7 +144,8 @@ def set_up_evaluation_experiments(n_models: int,
                                   ) -> Tuple[List[Explainer],
                                              DataLoader[Any],
                                              List[str]]:
-    utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
+    args = utils.parse_args(overriding_args=[f'--run_name={run_name}'])
+    utils.setup(args, eval_mode=not used_for_training)
 
     model_paths = ["trained_explainer.pt",
                    "pre-trained.pt"]

@@ -6,7 +6,8 @@ from config import SimpleArgumentParser
 
 def test_deterministic_dataset():
     args: SimpleArgumentParser
-    args = utils.setup([], eval_mode=True)
+    args = utils.parse_args([])  # use the default arguments instead of the input
+    utils.setup(args, eval_mode=True)
     loaders = utils.load_data_from_args(args)
     # assert args.n_test_batches == len(loaders.test)
 

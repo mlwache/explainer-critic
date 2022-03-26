@@ -12,7 +12,8 @@ Loss = float
 def run_experiments(overriding_args: Optional[List] = None):
 
     print("Setting up experiments...")
-    args = utils.setup(overriding_args)
+    args = utils.parse_args(overriding_args)
+    utils.setup(args)
     # start at the negative pretraining iterations, so the logging of combined training starts at step zero.
     global_vars.global_step = -(args.n_iterations - args.combined_iterations)
     loaders = utils.load_data_from_args(args)

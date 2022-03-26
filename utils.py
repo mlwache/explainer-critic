@@ -132,13 +132,16 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-def setup(overriding_args: Optional[List], eval_mode: bool = False) -> SimpleArgumentParser:
+def parse_args(overriding_args: Optional[List]) -> SimpleArgumentParser:
     args = SimpleArgumentParser()
     if overriding_args is not None:
         args.parse_args(overriding_args)
     else:
         args.parse_args()
+    return args
 
+
+def setup(args: SimpleArgumentParser, eval_mode: bool = False) -> None:
     set_seed()
     set_sharing_strategy()
     set_device()
@@ -151,8 +154,6 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> SimpleArg
         writer = SummaryWriter(log_dir)
         global_vars.LOGGING = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy,
                                       args.n_test_batches, args.log_interval_critic)
-
-    return args
 
 
 def smooth_end_losses(losses: List[float]) -> float:
