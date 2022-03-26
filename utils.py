@@ -1,7 +1,6 @@
 import json
 import os
 import random
-from dataclasses import dataclass
 from datetime import datetime
 from statistics import mean
 from typing import Tuple, Any, Optional, List, Union
@@ -15,26 +14,9 @@ from torch.utils.tensorboard import SummaryWriter
 from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
+from helper_types import Loaders, Logging
 from visualization import ImageHandler
-
-
-@dataclass
-class Loaders:
-    train: DataLoader[Any]
-    critic: Optional[DataLoader[Any]]
-    test: Optional[DataLoader[Any]]
-    visualization: Optional[DataLoader[Any]]
-
-
-@dataclass
-class Logging:
-    """Combines the variables that are only used for logging"""
-    writer: SummaryWriter
-    run_name: str
-    log_interval: int
-    log_interval_accuracy: int
-    n_test_batches: int
-    critic_log_interval: int
+import global_vars
 
 
 def load_data_from_args(args: SimpleArgumentParser) -> Loaders:
@@ -151,42 +133,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-class FastMNIST(MNIST):
-    # code snippet from https://github.com/y0ast/pytorch-snippets/tree/main/fast_mnist
-
-    MEAN_MNIST: float = 0.1307
-    STD_DEV_MNIST: float = 0.3081
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # Scale data to [0,1]
-        self.data = self.data.unsqueeze(1).float().div(255)
-
-        # Normalize it with the usual MNIST mean and std
-        self.data = self.data.sub_(self.MEAN_MNIST).div_(self.STD_DEV_MNIST)
-
-        # Put both data and targets on GPU in advance
-        device = get_device()
-        self.data, self.targets = self.data.to(device), self.targets.to(device)
-
-    def un_normalize(self):
-        self.data = self.data.mul_(self.STD_DEV_MNIST).add_(self.MEAN_MNIST)
-
-    def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-
-        Returns:
-            tuple: (image, target) where target is index of the target class.
-        """
-        img, target = self.data[index], self.targets[index]
-
-        return img, target
-
-
-def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging]:
+def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str]:
     args = SimpleArgumentParser()
     if overriding_args is not None:
         args.parse_args(overriding_args)
@@ -198,19 +145,18 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[Sim
     device = get_device()
 
     if args.logging_disabled or eval_mode:
-        logging = None
-        writer = None
+        global_vars.LOGGING = None
     else:
         log_dir = f"./runs/{config_string(args)}"
         write_config_to_log(args, log_dir)
         writer = SummaryWriter(log_dir)
-        logging = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy, args.n_test_batches,
-                          args.log_interval_critic)
+        global_vars.LOGGING = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy,
+                                      args.n_test_batches, args.log_interval_critic)
 
     # image_handler = ImageHandler(device, writer) # TODO: make ImageHandler a singleton
-    ImageHandler.device, ImageHandler.writer = device, writer
+    ImageHandler.device = device
 
-    return args, device, logging
+    return args, device
 
 
 def smooth_end_losses(losses: List[float]) -> float:
@@ -246,3 +192,38 @@ def compute_accuracy(classifier: nn.Module,
     total_accuracy = n_correct_samples / n_test_samples_total
     classifier.train()
     return total_accuracy
+
+
+class FastMNIST(MNIST):
+    # code snippet from https://github.com/y0ast/pytorch-snippets/tree/main/fast_mnist
+
+    MEAN_MNIST: float = 0.1307
+    STD_DEV_MNIST: float = 0.3081
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Scale data to [0,1]
+        self.data = self.data.unsqueeze(1).float().div(255)
+
+        # Normalize it with the usual MNIST mean and std
+        self.data = self.data.sub_(self.MEAN_MNIST).div_(self.STD_DEV_MNIST)
+
+        # Put both data and targets on GPU in advance
+        device = get_device()
+        self.data, self.targets = self.data.to(device), self.targets.to(device)
+
+    def un_normalize(self):
+        self.data = self.data.mul_(self.STD_DEV_MNIST).add_(self.MEAN_MNIST)
+
+    def __getitem__(self, index):
+        """
+        Args:
+            index (int): Index
+
+        Returns:
+            tuple: (image, target) where target is index of the target class.
+        """
+        img, target = self.data[index], self.targets[index]
+
+        return img, target

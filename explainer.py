@@ -14,7 +14,7 @@ import global_vars
 from config import SimpleArgumentParser
 from critic import Critic
 from net import Net
-from utils import Logging, compute_accuracy
+from utils import compute_accuracy
 from utils import colored, Loaders
 from visualization import ImageHandler
 
@@ -28,17 +28,15 @@ class Explainer:
     device: str
     loaders: Optional[Loaders]  # None if the explainer is only loaded from checkpoint, and not trained
     optimizer_type: Optional[str]
-    logging: Optional[Logging]  # None if logging is disabled
     test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]]
     model_path: str
 
     def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str],
-                 logging: Optional[Logging], test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
+                 test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
                  model_path: str, explanation_mode: str):
         self.device = device
         self.loaders = loaders
         self.optimizer_type = optimizer_type
-        self.logging = logging
         self.test_batch_to_visualize = test_batch_to_visualize
         self.model_path = model_path
         self.explanation_mode = explanation_mode
@@ -59,7 +57,7 @@ class Explainer:
         self.classifier.train()
 
     def save_state(self, path: str, epoch: int, loss: float):
-        if path and self.logging:  # empty model path means we don't save the model
+        if path and global_vars.LOGGING:  # empty model path means we don't save the model
             # first rename the previous model file, as torch.save does not necessarily overwrite the old model.
             if os.path.isfile(path):
                 os.replace(path, path + "_previous.pt")
@@ -165,8 +163,8 @@ class Explainer:
         self.critic = Critic(explanation_mode=explanation_mode,
                              device=self.device,
                              critic_loader=self.loaders.critic,
-                             writer=self.logging.writer if self.logging else None,
-                             log_interval_critic=self.logging.critic_log_interval if self.logging else None,
+                             log_interval_critic=global_vars.LOGGING.critic_log_interval if
+                             global_vars.LOGGING else None,
                              shuffle_data=shuffle_critic)
         explanation_batches = [x for [x, _] in self.get_labeled_explanation_batches(self.loaders.critic,
                                                                                     explanation_mode)]
@@ -185,14 +183,14 @@ class Explainer:
 
     def log_values(self, classification_loss: float, pretraining_mode: bool, current_epoch: int,
                    n_current_batch: int, n_epochs: int, mean_critic_loss: float, explanation_loss_total_weight: float):
-        if self.logging:
-            if n_current_batch % self.logging.log_interval == 0:
+        if global_vars.LOGGING:
+            if n_current_batch % global_vars.LOGGING.log_interval == 0:
                 self.log_training_details(explanation_loss_total_weight=explanation_loss_total_weight,
                                           mean_critic_loss=mean_critic_loss,
                                           classification_loss=classification_loss,
                                           n_current_batch=n_current_batch,
                                           learning_rate=self.optimizer.param_groups[0]['lr'])
-            if n_current_batch % self.logging.log_interval_accuracy == 0 and self.loaders.test:
+            if n_current_batch % global_vars.LOGGING.log_interval_accuracy == 0 and self.loaders.test:
                 self.log_accuracy()
                 ImageHandler.add_gradient_images(self.test_batch_to_visualize, self, "2: during training",
                                                  global_step=global_vars.global_step)
@@ -202,7 +200,7 @@ class Explainer:
                 # in pretraining mode the global step is not increased in the critic, so it needs to be done here.
 
             progress_percentage: float = 100 * current_epoch / n_epochs
-            print(f'{colored(0, 150, 100, str(self.logging.run_name))}: '
+            print(f'{colored(0, 150, 100, str(global_vars.LOGGING.run_name))}: '
                   f'epoch {current_epoch}, '
                   f'explainer batch {n_current_batch} of {n_epochs} epochs '
                   f'({colored(200, 200, 100, f"{progress_percentage:.0f}%")})]')
@@ -225,18 +223,19 @@ class Explainer:
 
         # add scalars to writer
         global_step = global_vars.global_step
-        if self.logging:
+        if global_vars.LOGGING:
             if explanation_loss_total_weight:
                 total_loss = mean_critic_loss * explanation_loss_total_weight + classification_loss
             else:
                 total_loss = classification_loss
-            self.logging.writer.add_scalar("Explainer_Training/Explanation", mean_critic_loss,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Classification", classification_loss,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Total", total_loss,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate, global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Explanation", mean_critic_loss,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Classification", classification_loss,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Total", total_loss,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Learning_Rate", learning_rate,
+                                                  global_step=global_step)
 
             # print statistics
             print(f'Loss: {total_loss:.3f} ='
@@ -244,9 +243,9 @@ class Explainer:
                   f'*{mean_critic_loss:.3f}(explanation)')
 
     def terminate_writer(self):
-        if self.logging:
-            self.logging.writer.flush()
-            self.logging.writer.close()
+        if global_vars.LOGGING:
+            global_vars.LOGGING.writer.flush()
+            global_vars.LOGGING.writer.close()
 
     def integrated_gradient(self, input_images: Tensor, labels: Tensor) -> Tensor:
         integrated_gradients = IntegratedGradients(self.classifier.forward)
@@ -298,7 +297,7 @@ class Explainer:
 
     def log_accuracy(self):
         global_step = global_vars.global_step
-        training_accuracy = compute_accuracy(self.classifier, self.loaders.train, self.logging.n_test_batches)
+        training_accuracy = compute_accuracy(self.classifier, self.loaders.train, global_vars.LOGGING.n_test_batches)
         test_accuracy = compute_accuracy(self.classifier, self.loaders.test)
         if self.critic:
             critic_test_accuracy = compute_accuracy(classifier=self.critic.classifier,
@@ -324,19 +323,20 @@ class Explainer:
         print(colored(0, 0, 200, f'accuracy training: {training_accuracy:3f}, accuracy testing: {test_accuracy:.3f}, '
                                  f'accuracy critic training:{critic_training_accuracy:3f}, accuracy critic testing:'
                                  f'{critic_test_accuracy:3f}'))
-        if self.logging:
-            self.logging.writer.add_scalar("Explainer_Training/Training_Accuracy", training_accuracy,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Explainer_Training/Test_Accuracy", test_accuracy,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Critic_Training/Training_Accuracy", critic_training_accuracy,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Critic_Training/Test_Accuracy", critic_test_accuracy,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Critic_Training/Input_Test_Accuracy", critic_test_accuracy_input,
-                                           global_step=global_step)
-            self.logging.writer.add_scalar("Critic_Training/Input_Training_Accuracy", critic_training_accuracy_input,
-                                           global_step=global_step)
+        if global_vars.LOGGING:
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Training_Accuracy", training_accuracy,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Explainer_Training/Test_Accuracy", test_accuracy,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Critic_Training/Training_Accuracy", critic_training_accuracy,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Critic_Training/Test_Accuracy", critic_test_accuracy,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Critic_Training/Input_Test_Accuracy", critic_test_accuracy_input,
+                                                  global_step=global_step)
+            global_vars.LOGGING.writer.add_scalar("Critic_Training/Input_Training_Accuracy",
+                                                  critic_training_accuracy_input,
+                                                  global_step=global_step)
 
     def initialize_optimizer(self, learning_rate):
         if self.optimizer_type == "adadelta":

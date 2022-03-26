@@ -12,13 +12,13 @@ Loss = float
 def run_experiments(overriding_args: Optional[List] = None):
 
     print("Setting up experiments...")
-    args, device, logging = utils.setup(overriding_args)
+    args, device = utils.setup(overriding_args)
     # start at the negative pretraining iterations, so the logging of combined training starts at step zero.
     global_vars.global_step = -(args.n_iterations - args.combined_iterations)
     loaders = utils.load_data_from_args(args)
 
     test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
-    explainer = Explainer(device, loaders, args.optimizer, logging, test_batch_to_visualize,
+    explainer = Explainer(device, loaders, args.optimizer, test_batch_to_visualize,
                           model_path=f"models/{utils.config_string(args)}.pt", explanation_mode=args.explanation_mode)
     ImageHandler.add_input_images(test_batch_to_visualize[0])  # needs only the images, not the labels
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
@@ -85,7 +85,6 @@ def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning
     critic = Critic(explanation_mode="empty",
                     device=device,
                     critic_loader=critic_loader,
-                    writer=None,
                     log_interval_critic=1,
                     shuffle_data=False)
 

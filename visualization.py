@@ -1,8 +1,9 @@
-from typing import Tuple, Optional
+from typing import Tuple
 
 import torchvision
 from torch import Tensor
-from torch.utils.tensorboard import SummaryWriter
+
+import global_vars
 
 
 class ImageHandler:
@@ -11,7 +12,6 @@ class ImageHandler:
     STD_DEV_MNIST: float = 0.3081
 
     device: str
-    writer: Optional[SummaryWriter]
 
     @staticmethod
     def rescale_to_zero_one(images: Tensor):
@@ -52,8 +52,8 @@ class ImageHandler:
     @staticmethod
     def add_image_grid_to_writer(caption: str, some_images: Tensor, global_step: int = None):
         combined_image = torchvision.utils.make_grid(some_images)
-        if ImageHandler.writer:
-            ImageHandler.writer.add_image(caption, combined_image, global_step=global_step)
+        if global_vars.LOGGING:
+            global_vars.LOGGING.writer.add_image(caption, combined_image, global_step=global_step)
         else:
             print(colored(200, 0, 0, f"No writer set - skipped adding {caption} images."))
 

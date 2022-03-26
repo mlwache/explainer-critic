@@ -148,7 +148,7 @@ def set_up_evaluation_experiments(n_models: int,
                                              List[str]]:
     device: str
     cfg: SimpleArgumentParser
-    cfg, device, logging = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
+    cfg, device = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
 
     model_paths = ["trained_explainer.pt",
                    "pre-trained.pt"]
@@ -158,7 +158,6 @@ def set_up_evaluation_experiments(n_models: int,
                          "nothing"][0:n_models]
     explainers: List[Explainer] = get_list_of_empty_explainers(device=device,
                                                                explanation_modes=explanation_modes,
-                                                               logging=logging,
                                                                loaders=loaders)
     for i in range(n_models):
         if i < len(model_paths):
@@ -207,11 +206,10 @@ def variance(points: List[Tensor]) -> float:
     return torch.mean(l_2_distances).item()
 
 
-def get_list_of_empty_explainers(device, explanation_modes, logging, loaders) -> List[Explainer]:
+def get_list_of_empty_explainers(device, explanation_modes, loaders) -> List[Explainer]:
     return [Explainer(device=device,
                       loaders=loaders,
                       optimizer_type=None,
-                      logging=logging,
                       test_batch_to_visualize=None,
                       model_path="",
                       explanation_mode=explanation_mode) for explanation_mode in explanation_modes]

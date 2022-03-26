@@ -2,12 +2,10 @@ import random
 from statistics import mean
 from typing import Any, List, Tuple, Optional
 
-import torch
 from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
 from torch.utils.data.dataloader import DataLoader
-from torch.utils.tensorboard import SummaryWriter
 
 import global_vars
 from net import Net
@@ -20,13 +18,11 @@ class Critic:
     def __init__(self, explanation_mode: str,
                  device: str,
                  critic_loader: DataLoader[Any],
-                 writer: Optional[SummaryWriter],
                  log_interval_critic: Optional[int],
                  shuffle_data: bool
                  ):
         self.classifier = Net().to(device)
         self.critic_loader = critic_loader
-        self.writer = writer
         self.log_interval_critic = log_interval_critic
         self.explanation_mode = explanation_mode
         self.shuffle_data: bool = shuffle_data
@@ -44,7 +40,7 @@ class Critic:
 
             permuted_explanations, permuted_critic_set = zip(*shuffled_zipped)
         else:
-            permuted_explanations = [] # if explanations are empty, then permuted explanations are also empty.
+            permuted_explanations = []  # if explanations are empty, then permuted explanations are also empty.
             permuted_critic_set = list(self.critic_loader)
             random.shuffle(permuted_critic_set)
 
@@ -83,10 +79,11 @@ class Critic:
             # if n_current_batch == 0 or n_current_batch == self.cfg.n_critic_batches - 1:
 
             print(f'crit_batch = {n_current_batch}, loss.item() = {loss.item():.3f}')
-            if self.writer:
-                self.add_scalars_to_writer(loss)
+            self.add_scalars_to_writer(loss)
 
     def add_scalars_to_writer(self, loss):
         # global_step = self.cfg.n_critic_batches * n_explainer_batch + n_current_batch
-        if self.writer:
-            self.writer.add_scalar("Critic_Training/Critic_Loss", loss.item(), global_step=global_vars.global_step)
+        if global_vars.LOGGING:
+            global_vars.LOGGING.writer.add_scalar("Critic_Training/Critic_Loss",
+                                                  loss.item(),
+                                                  global_step=global_vars.global_step)
