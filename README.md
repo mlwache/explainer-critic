@@ -22,6 +22,7 @@ Here you can find a [formalization and more detailed description](https://hackmd
 
 ## Setup
 
+* I have tested the code on python 3.6 and python 3.9. It might not work with earlier python versions
 * `pip install -r requirements.txt`
 * If CUDA is too old, check out which previous versions of torch to install [here](https://pytorch.org/get-started/previous-versions/).
     * get the newest pytorch version that still works with your CUDA version.
