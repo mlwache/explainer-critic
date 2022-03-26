@@ -148,7 +148,7 @@ def set_up_evaluation_experiments(n_models: int,
                                              List[str]]:
     device: str
     cfg: SimpleArgumentParser
-    cfg, device, logging, _ = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
+    cfg, device, logging = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
 
     model_paths = ["trained_explainer.pt",
                    "pre-trained.pt"]
@@ -213,7 +213,6 @@ def get_list_of_empty_explainers(device, explanation_modes, logging, loaders) ->
                       optimizer_type=None,
                       logging=logging,
                       test_batch_to_visualize=None,
-                      rtpt=None,
                       model_path="",
                       explanation_mode=explanation_mode) for explanation_mode in explanation_modes]
 

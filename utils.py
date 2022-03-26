@@ -9,7 +9,6 @@ from typing import Tuple, Any, Optional, List, Union
 import numpy as np
 import torch.cuda
 import torch.multiprocessing
-from rtpt import RTPT
 from torch import Tensor, nn
 from torch.utils.data import DataLoader, ConcatDataset, random_split, Subset
 from torch.utils.tensorboard import SummaryWriter
@@ -187,8 +186,7 @@ class FastMNIST(MNIST):
         return img, target
 
 
-def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging,
-                                                                             Optional[RTPT]]:
+def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str, Logging]:
     args = SimpleArgumentParser()
     if overriding_args is not None:
         args.parse_args(overriding_args)
@@ -198,13 +196,6 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[Sim
     set_seed()
     set_sharing_strategy()
     device = get_device()
-
-    if args.rtpt_enabled:
-        rtpt = RTPT(name_initials='mwache',
-                    experiment_name='explainer-critic',
-                    max_iterations=args.n_iterations)
-    else:
-        rtpt = None
 
     if args.logging_disabled or eval_mode:
         logging = None
@@ -219,7 +210,7 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[Sim
     # image_handler = ImageHandler(device, writer) # TODO: make ImageHandler a singleton
     ImageHandler.device, ImageHandler.writer = device, writer
 
-    return args, device, logging, rtpt
+    return args, device, logging
 
 
 def smooth_end_losses(losses: List[float]) -> float:

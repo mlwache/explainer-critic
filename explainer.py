@@ -4,7 +4,6 @@ from typing import Tuple, Optional, List
 import torch
 from captum.attr import InputXGradient
 from captum.attr import IntegratedGradients
-from rtpt import RTPT
 from torch import Tensor, nn, optim
 from torch.nn.modules import Module
 from torch.optim import Optimizer
@@ -31,26 +30,21 @@ class Explainer:
     optimizer_type: Optional[str]
     logging: Optional[Logging]  # None if logging is disabled
     test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]]
-    rtpt: Optional[RTPT]
     model_path: str
 
     def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str],
                  logging: Optional[Logging], test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
-                 rtpt: Optional[RTPT], model_path: str, explanation_mode: str):
+                 model_path: str, explanation_mode: str):
         self.device = device
         self.loaders = loaders
         self.optimizer_type = optimizer_type
         self.logging = logging
         self.test_batch_to_visualize = test_batch_to_visualize
-        self.rtpt = rtpt
         self.model_path = model_path
         self.explanation_mode = explanation_mode
         self.critic: Optional[Critic] = None
 
         self.classifier = Net().to(device)
-
-        if rtpt:
-            self.rtpt.start()
 
     def load_state(self, path: str):
         if self.device == 'cuda':
@@ -248,8 +242,6 @@ class Explainer:
             print(f'Loss: {total_loss:.3f} ='
                   f' {classification_loss:.3f}(classification) + {explanation_loss_total_weight}(lambda)'
                   f'*{mean_critic_loss:.3f}(explanation)')
-            if self.rtpt:
-                self.rtpt.step(subtitle=f"loss={mean_critic_loss:2.2f}")
 
     def terminate_writer(self):
         if self.logging:

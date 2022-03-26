@@ -2,7 +2,6 @@ torchvision~=0.12.0
 torch~=1.11.0
 matplotlib
 numpy
-rtpt~=0.0.4
 tensorboard~=2.6.0
 
 # my fork of the captum package in which the computation graph is retained.

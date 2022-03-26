@@ -43,7 +43,6 @@ class SimpleArgumentParser(Tap):
     # setting this to a lower value will reduce performance significantly.
 
     render_enabled: bool = False
-    rtpt_enabled: bool = False
 
     run_name: str = ""
 
