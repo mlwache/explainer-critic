@@ -15,7 +15,6 @@ from torchvision.datasets import MNIST
 
 from config import SimpleArgumentParser
 from helper_types import Loaders, Logging
-from visualization import ImageHandler
 import global_vars
 
 
@@ -74,12 +73,12 @@ def colored(r, g, b, text):
     return f"\033[38;2;{r};{g};{b}m{text}\033[0m"
 
 
-def get_device():
+def set_device():
     if not torch.cuda.is_available():
         print(colored(200, 150, 0, f"No GPU found, falling back to CPU."))
-        return "cpu"
+        global_vars.DEVICE = "cpu"
     else:
-        return "cuda"
+        global_vars.DEVICE = "cuda"
 
 
 def set_sharing_strategy():
@@ -133,7 +132,7 @@ def set_seed(seed=42):
     torch.backends.cudnn.benchmark = False
 
 
-def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[SimpleArgumentParser, str]:
+def setup(overriding_args: Optional[List], eval_mode: bool = False) -> SimpleArgumentParser:
     args = SimpleArgumentParser()
     if overriding_args is not None:
         args.parse_args(overriding_args)
@@ -142,7 +141,7 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[Sim
 
     set_seed()
     set_sharing_strategy()
-    device = get_device()
+    set_device()
 
     if args.logging_disabled or eval_mode:
         global_vars.LOGGING = None
@@ -153,10 +152,7 @@ def setup(overriding_args: Optional[List], eval_mode: bool = False) -> Tuple[Sim
         global_vars.LOGGING = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy,
                                       args.n_test_batches, args.log_interval_critic)
 
-    # image_handler = ImageHandler(device, writer) # TODO: make ImageHandler a singleton
-    ImageHandler.device = device
-
-    return args, device
+    return args
 
 
 def smooth_end_losses(losses: List[float]) -> float:
@@ -210,8 +206,7 @@ class FastMNIST(MNIST):
         self.data = self.data.sub_(self.MEAN_MNIST).div_(self.STD_DEV_MNIST)
 
         # Put both data and targets on GPU in advance
-        device = get_device()
-        self.data, self.targets = self.data.to(device), self.targets.to(device)
+        self.data, self.targets = self.data.to(global_vars.DEVICE), self.targets.to(global_vars.DEVICE)
 
     def un_normalize(self):
         self.data = self.data.mul_(self.STD_DEV_MNIST).add_(self.MEAN_MNIST)

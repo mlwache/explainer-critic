@@ -16,12 +16,11 @@ Loss = float
 class Critic:
 
     def __init__(self, explanation_mode: str,
-                 device: str,
                  critic_loader: DataLoader[Any],
                  log_interval_critic: Optional[int],
                  shuffle_data: bool
                  ):
-        self.classifier = Net().to(device)
+        self.classifier = Net().to(global_vars.DEVICE)
         self.critic_loader = critic_loader
         self.log_interval_critic = log_interval_critic
         self.explanation_mode = explanation_mode

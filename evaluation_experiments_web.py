@@ -9,7 +9,6 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 import utils
-from config import SimpleArgumentParser
 from explainer import Explainer
 
 
@@ -18,7 +17,7 @@ def run_evaluation_experiments():
     modes = ["gradient", "input_x_gradient", "input"]
     if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
         state.n_models = 3
-        state.explainers, state.test_loader, state.device, state.model_names = \
+        state.explainers, state.test_loader, state.model_names = \
             set_up_evaluation_experiments(state.n_models)
 
         # all of the following are lists, because I compute them for multiple models.
@@ -144,11 +143,8 @@ def set_up_evaluation_experiments(n_models: int,
                                   used_for_training=False,
                                   ) -> Tuple[List[Explainer],
                                              DataLoader[Any],
-                                             str,
                                              List[str]]:
-    device: str
-    cfg: SimpleArgumentParser
-    cfg, device = utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
+    utils.setup(overriding_args=[f'--run_name={run_name}'], eval_mode=not used_for_training)
 
     model_paths = ["trained_explainer.pt",
                    "pre-trained.pt"]
@@ -156,8 +152,7 @@ def set_up_evaluation_experiments(n_models: int,
     explanation_modes = ["input_x_gradient",
                          "input",
                          "nothing"][0:n_models]
-    explainers: List[Explainer] = get_list_of_empty_explainers(device=device,
-                                                               explanation_modes=explanation_modes,
+    explainers: List[Explainer] = get_list_of_empty_explainers(explanation_modes=explanation_modes,
                                                                loaders=loaders)
     for i in range(n_models):
         if i < len(model_paths):
@@ -174,7 +169,7 @@ def set_up_evaluation_experiments(n_models: int,
                               batch_size=100,
                               test_batch_size=100)
 
-    return explainers, loaders.test, device, model_paths
+    return explainers, loaders.test, model_paths
 
 
 def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
@@ -206,9 +201,8 @@ def variance(points: List[Tensor]) -> float:
     return torch.mean(l_2_distances).item()
 
 
-def get_list_of_empty_explainers(device, explanation_modes, loaders) -> List[Explainer]:
-    return [Explainer(device=device,
-                      loaders=loaders,
+def get_list_of_empty_explainers(explanation_modes, loaders) -> List[Explainer]:
+    return [Explainer(loaders=loaders,
                       optimizer_type=None,
                       test_batch_to_visualize=None,
                       model_path="",

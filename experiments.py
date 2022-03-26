@@ -12,14 +12,17 @@ Loss = float
 def run_experiments(overriding_args: Optional[List] = None):
 
     print("Setting up experiments...")
-    args, device = utils.setup(overriding_args)
+    args = utils.setup(overriding_args)
     # start at the negative pretraining iterations, so the logging of combined training starts at step zero.
     global_vars.global_step = -(args.n_iterations - args.combined_iterations)
     loaders = utils.load_data_from_args(args)
 
-    test_batch_to_visualize = utils.get_one_batch_of_images(device, loaders.visualization)
-    explainer = Explainer(device, loaders, args.optimizer, test_batch_to_visualize,
-                          model_path=f"models/{utils.config_string(args)}.pt", explanation_mode=args.explanation_mode)
+    test_batch_to_visualize = utils.get_one_batch_of_images(global_vars.DEVICE, loaders.visualization)
+    explainer = Explainer(loaders,
+                          args.optimizer,
+                          test_batch_to_visualize,
+                          model_path=f"models/{utils.config_string(args)}.pt",
+                          explanation_mode=args.explanation_mode)
     ImageHandler.add_input_images(test_batch_to_visualize[0])  # needs only the images, not the labels
     ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="0: before training")
 
@@ -50,7 +53,7 @@ def run_experiments(overriding_args: Optional[List] = None):
 
     elif args.training_mode == "only_critic":
         print(utils.colored(200, 0, 0, "Only training critic, progress output may still be buggy."))
-        init_l, fin_l = train_only_critic(device, args.n_critic_batches, args.batch_size, args.learning_rate_critic,
+        init_l, fin_l = train_only_critic(args.n_critic_batches, args.batch_size, args.learning_rate_critic,
                                           explanations=[])
         print(f"initial/final loss (only critic): {init_l}, {fin_l}")
 
@@ -75,7 +78,7 @@ def run_experiments(overriding_args: Optional[List] = None):
     print(utils.colored(0, 200, 0, "Finished!"))
 
 
-def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning_rate,
+def train_only_critic(n_critic_batches, batch_size, critic_learning_rate,
                       explanations: List) -> Tuple[Loss, Loss]:
     critic_loader = utils.load_data(n_training_samples=1,
                                     n_critic_samples=n_critic_batches * batch_size,
@@ -83,7 +86,6 @@ def train_only_critic(device: str, n_critic_batches, batch_size, critic_learning
                                     batch_size=batch_size,
                                     test_batch_size=1).critic
     critic = Critic(explanation_mode="empty",
-                    device=device,
                     critic_loader=critic_loader,
                     log_interval_critic=1,
                     shuffle_data=False)

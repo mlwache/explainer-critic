@@ -25,16 +25,16 @@ class Explainer:
     classifier: Net
     optimizer: Optimizer
 
-    device: str
     loaders: Optional[Loaders]  # None if the explainer is only loaded from checkpoint, and not trained
     optimizer_type: Optional[str]
     test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]]
     model_path: str
 
-    def __init__(self, device: str, loaders: Optional[Loaders], optimizer_type: Optional[str],
+    def __init__(self,
+                 loaders: Optional[Loaders],
+                 optimizer_type: Optional[str],
                  test_batch_to_visualize: Optional[Tuple[Tensor, Tensor]],
                  model_path: str, explanation_mode: str):
-        self.device = device
         self.loaders = loaders
         self.optimizer_type = optimizer_type
         self.test_batch_to_visualize = test_batch_to_visualize
@@ -42,15 +42,15 @@ class Explainer:
         self.explanation_mode = explanation_mode
         self.critic: Optional[Critic] = None
 
-        self.classifier = Net().to(device)
+        self.classifier = Net().to(global_vars.DEVICE)
 
     def load_state(self, path: str):
-        if self.device == 'cuda':
+        if global_vars.DEVICE == 'cuda':
             checkpoint: dict = torch.load(path)
-        elif self.device == 'cpu':
+        elif global_vars.DEVICE == 'cpu':
             checkpoint: dict = torch.load(path, map_location=torch.device('cpu'))
         else:
-            raise NotImplementedError(f"dealing with device {self.device} not implemented")
+            raise NotImplementedError(f"dealing with device {global_vars.DEVICE} not implemented")
         self.classifier.load_state_dict(checkpoint['model_state_dict'])
         # self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         # currently not needed, as we don't use checkpoints to continue training, only for inference.
@@ -145,7 +145,7 @@ class Explainer:
                                 mean_critic_loss=mean_critic_loss,
                                 explanation_loss_total_weight=explanation_loss_total_weight)
 
-            if self.device != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving
+            if global_vars.DEVICE != 'cpu':  # on the cpu I assume it's not a valuable run which needs saving
                 self.save_state(self.model_path, epoch=n_epochs, loss=end_classification_loss)
             if lr_scheduling:
                 scheduler.step()
@@ -161,7 +161,6 @@ class Explainer:
         if explanation_mode is None:
             explanation_mode = self.explanation_mode
         self.critic = Critic(explanation_mode=explanation_mode,
-                             device=self.device,
                              critic_loader=self.loaders.critic,
                              log_interval_critic=global_vars.LOGGING.critic_log_interval if
                              global_vars.LOGGING else None,

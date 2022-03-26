@@ -11,8 +11,6 @@ class ImageHandler:
     MEAN_MNIST: float = 0.1307
     STD_DEV_MNIST: float = 0.3081
 
-    device: str
-
     @staticmethod
     def rescale_to_zero_one(images: Tensor):
         assert (images >= 0).all(), "it's expected that all values are non-negative."

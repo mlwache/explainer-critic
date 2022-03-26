@@ -58,8 +58,8 @@ class ImportanceMapMNIST(MNIST):
         super().__init__(root=root, train=train, download=download)
 
         # Put both data and targets on GPU in advance
-        device = utils.get_device()
-        self.data, self.targets = self.data.to(device), self.targets.to(device)
+        utils.set_device()  # probably not necessary (?)
+        self.data, self.targets = self.data.to(global_vars.DEVICE), self.targets.to(global_vars.DEVICE)
 
         # Scale data to [0,1]
         self.data = self.data.unsqueeze(1).float().div(255)
