@@ -297,7 +297,7 @@ class Explainer:
         elif explanation_mode == "input":
             return inputs
         else:
-            raise NotImplementedError(f"unknown explanation mode '{self.explanation_mode}'")
+            raise NotImplementedError(f"unknown explanation mode '{explanation_mode}'")
 
     def predict(self, images: Tensor) -> Tensor:
         outputs = self.classifier(images)
