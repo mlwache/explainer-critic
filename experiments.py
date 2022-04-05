@@ -18,7 +18,7 @@ def run_experiments(overriding_args: Optional[List] = None):
     global_vars.global_step = -(args.n_iterations - args.combined_iterations)
     loaders = utils.load_data_from_args(args)
 
-    test_batch_to_visualize = utils.get_one_batch_of_images(global_vars.DEVICE, loaders.visualization)
+    test_batch_to_visualize = utils.get_one_batch_of_images(loaders.visualization)
     explainer = Explainer(loaders,
                           args.optimizer,
                           test_batch_to_visualize,
@@ -29,51 +29,51 @@ def run_experiments(overriding_args: Optional[List] = None):
 
     if args.training_mode == "combined":
         print("Training together with simple combined loss...")
-        init_l, fin_l = explainer.train_from_args(args)
-        print(f"initial/final loss:{init_l:.3f}, {fin_l:3f}")
+        init_loss, fin_loss = explainer.train_from_args(args)
+        print(f"initial/final loss:{init_loss:.3f}, {fin_loss:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
 
     elif args.training_mode == "pretrain_from_scratch":
         print("Pre-train the explainer first...")
-        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
-        print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
+        init_loss_pretraining, final_loss_pretraining = explainer.pretrain_from_args(args)
+        print(f"initial/final loss (pretraining):{init_loss_pretraining:.3f}, {final_loss_pretraining:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        init_l, fin_l = explainer.train_from_args(args)
-        print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
+        init_loss, fin_loss = explainer.train_from_args(args)
+        print(f"initial/final loss (combined, after pretraining):{init_loss:.3f}, {fin_loss:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
 
     elif args.training_mode == "pretrained":
         explainer.load_state("./models/pretrained_model.pt")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        init_l, fin_l = explainer.train_from_args(args)
-        print(f"initial/final loss (combined, after pretraining):{init_l:.3f}, {fin_l:3f}")
+        init_loss, fin_loss = explainer.train_from_args(args)
+        print(f"initial/final loss (combined, after pretraining):{init_loss:.3f}, {fin_loss:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="3: after combined training")
 
     elif args.training_mode == "only_critic":
         print(utils.colored(200, 0, 0, "Only training critic, progress output may still be buggy."))
-        init_l, fin_l = train_only_critic(args.n_critic_batches, args.batch_size, args.learning_rate_critic,
+        init_loss, fin_loss = train_only_critic(args.n_critic_batches, args.batch_size, args.learning_rate_critic,
                                           explanations=[])
-        print(f"initial/final loss (only critic): {init_l}, {fin_l}")
+        print(f"initial/final loss (only critic): {init_loss}, {fin_loss}")
 
     elif args.training_mode == "only_classification":
-        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
-        print(f"initial/final loss (only classification): {init_l_p}, {fin_l_p}")
+        init_loss_pretraining, final_loss_pretraining = explainer.pretrain_from_args(args)
+        print(f"initial/final loss (only classification): {init_loss_pretraining}, {final_loss_pretraining}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer,
                                          additional_caption="after only-classification training")
-        print(f"initial/final loss (pretraining):{init_l_p:.3f}, {fin_l_p:3f}")
+        print(f"initial/final loss (pretraining):{init_loss_pretraining:.3f}, {final_loss_pretraining:3f}")
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
 
     elif args.training_mode == "in_turns":
         train_in_turns()
     elif args.training_mode == "one_critic_pass":
-        init_l_p, fin_l_p = explainer.pretrain_from_args(args)
+        init_loss_pretraining, final_loss_pretraining = explainer.pretrain_from_args(args)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
-        fin_l_p = explainer.train_critic_on_explanations(critic_lr=args.learning_rate_critic,
+        final_loss_pretraining = explainer.train_critic_on_explanations(critic_lr=args.learning_rate_critic,
                                                          shuffle_critic=not args.disable_critic_shuffling)
-        print(f"initial/mean loss (one critic pass): {init_l_p}, {fin_l_p}")
+        print(f"initial/mean loss (one critic pass): {init_loss_pretraining}, {final_loss_pretraining}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
     print(utils.colored(0, 200, 0, "Finished!"))

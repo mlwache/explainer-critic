@@ -117,9 +117,9 @@ def config_string(cfg: SimpleArgumentParser) -> str:
            f'_{date_time_string()}'
 
 
-def get_one_batch_of_images(device: str, loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
+def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     images, labels = next(iter(loader))
-    images, labels = images.to(device), labels.to(device)
+    images, labels = images.to(global_vars.DEVICE), labels.to(global_vars.DEVICE)
     return images, labels
 
 
@@ -154,16 +154,6 @@ def setup(args: SimpleArgumentParser, eval_mode: bool = False) -> None:
         writer = SummaryWriter(log_dir)
         global_vars.LOGGING = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy,
                                       args.n_test_batches, args.log_interval_critic)
-
-
-def smooth_end_losses(losses: List[float]) -> float:
-    """average the last quarter of the losses"""
-    last_few_losses = losses[-len(losses) // 4:len(losses)]
-    if last_few_losses:
-        return mean(last_few_losses)
-    else:
-        print("not enough losses to smooth")
-        return losses[-1]
 
 
 def compute_accuracy(classifier: nn.Module,
