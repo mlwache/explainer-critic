@@ -9,6 +9,7 @@ class SimpleArgumentParser(Tap):
     training_mode: str = "pretrain_from_scratch"
     logging_disabled: bool = False
     lr_scheduling: bool = False
+    random_seed: int = 42
 
     # Training Details
     batch_size: int = 128

@@ -2,7 +2,6 @@ import json
 import os
 import random
 from datetime import datetime
-from statistics import mean
 from typing import Tuple, Any, Optional, List, Union
 
 import numpy as np
@@ -123,7 +122,7 @@ def get_one_batch_of_images(loader: DataLoader[Any]) -> Tuple[Tensor, Tensor]:
     return images, labels
 
 
-def set_seed(seed=42):
+def set_seed(seed: int):
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -142,7 +141,7 @@ def parse_args(overriding_args: Optional[List]) -> SimpleArgumentParser:
 
 
 def setup(args: SimpleArgumentParser, eval_mode: bool = False) -> None:
-    set_seed()
+    set_seed(args.random_seed)
     set_sharing_strategy()
     set_device()
 
