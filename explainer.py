@@ -187,7 +187,6 @@ class Explainer:
                 self.log_training_details(explanation_loss_total_weight=explanation_loss_total_weight,
                                           mean_critic_loss=mean_critic_loss,
                                           classification_loss=classification_loss,
-                                          n_current_batch=n_current_batch,
                                           learning_rate=self.optimizer.param_groups[0]['lr'])
             if n_current_batch % global_vars.LOGGING.log_interval_accuracy == 0 and self.loaders.test:
                 self.log_accuracy()
@@ -217,8 +216,9 @@ class Explainer:
         return self.pretrain(args.pretrain_learning_rate, args.learning_rate_step, args.lr_scheduling,
                              args.n_pretraining_epochs)
 
-    def log_training_details(self, explanation_loss_total_weight, mean_critic_loss, classification_loss,
-                             n_current_batch, learning_rate):
+    @staticmethod
+    def log_training_details(explanation_loss_total_weight, mean_critic_loss, classification_loss,
+                             learning_rate):
 
         # add scalars to writer
         global_step = global_vars.global_step
@@ -241,7 +241,8 @@ class Explainer:
                   f' {classification_loss:.3f}(classification) + {explanation_loss_total_weight}(lambda)'
                   f'*{mean_critic_loss:.3f}(explanation)')
 
-    def terminate_writer(self):
+    @staticmethod
+    def terminate_writer():
         if global_vars.LOGGING:
             global_vars.LOGGING.writer.flush()
             global_vars.LOGGING.writer.close()
@@ -260,7 +261,8 @@ class Explainer:
         gradient: Tensor = gradient_x_input / input_images
         return gradient
 
-    def clip_and_rescale(self, images: Tensor) -> Tensor:
+    @staticmethod
+    def clip_and_rescale(images: Tensor) -> Tensor:
         # if not self.disable_gradient_clipping:
         # clip negative gradients to zero (don't distinguish between "no impact" and "negative impact" on the label)
         images[images < 0] = 0
