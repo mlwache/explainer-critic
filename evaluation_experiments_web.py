@@ -201,8 +201,11 @@ def variance(points: List[Tensor]) -> float:
     points = torch.stack(points)
     mean_point = torch.mean(points, dim=0)
     differences_to_mean = points - mean_point
+    differences_as_vector = torch.flatten(differences_to_mean, start_dim=1, end_dim=3)
+    differences_square = differences_as_vector * differences_as_vector
     # take the l_2 distance along the dimensions of the image
-    l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
+    # l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
+    l_2_distances = torch.sqrt(differences_square.sum(dim=1))
     return torch.mean(l_2_distances).item()
 
 
