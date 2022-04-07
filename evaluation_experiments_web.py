@@ -26,21 +26,24 @@ def run_evaluation_experiments():
         state.aggregated_variances = []
 
         for model_nr in range(state.n_models):
-            intra_class_variances_per_model: Dict[str, List[float]] = {}
-            aggregated_variance_per_model: Dict[str, float] = {}
+            intra_class_variances_in_this_model: Dict[str, List[float]] = {}
+            aggregated_variance_in_this_model: Dict[str, float] = {}
             for mode in modes:
                 # first, get  all explanations/inputs of the test set
                 labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
                                                                                           state.test_loader,
                                                                                           mode)
                 explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
-                intra_class_variances_per_model[mode] = intra_class_variances(labeled_explanations)
-                aggregated_variance_per_model[mode] = variance(explanations)
-            state.intra_class_variances.append(intra_class_variances_per_model)
-            state.aggregated_variances.append(aggregated_variance_per_model)
+                intra_class_variances_in_this_model[mode] = intra_class_variances(labeled_explanations)
+                aggregated_variance_in_this_model[mode] = variance(explanations)
+            state.intra_class_variances.append(intra_class_variances_in_this_model)
+            state.aggregated_variances.append(aggregated_variance_in_this_model)
 
             state.accuracies.append(utils.compute_accuracy(state.explainers[model_nr].classifier, state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
+
+    assert len(state.aggregated_variances) == state.n_models
+    assert len(state.aggregated_variances[0]) == len(modes)
 
     accuracies = st.session_state.accuracies
     visualization_loaders = st.session_state.visualization_loaders
@@ -62,11 +65,12 @@ def run_evaluation_experiments():
             f"accuracy: `{accuracies[model_nr]}`"
             st.write(f"Intra-Class Variance of Class `{label}` on {explanation_mode}:"
                      f" `{state.intra_class_variances[model_nr][explanation_mode][label]:.3f}`")
-            mean_dist = mean(state.intra_class_variances[model_nr][explanation_mode])
+            mean_intra_class_variance = mean(state.intra_class_variances[model_nr][explanation_mode])
+
             aggregated = state.aggregated_variances[model_nr][explanation_mode]
-            f"Intra-Class Variance, averaged over classes `{mean_dist:.3f}`"
+            f"Intra-Class Variance, averaged over classes `{mean_intra_class_variance:.3f}`"
             f"Aggregated Variance: `{aggregated:.3f}`"
-            f"Ratio `{aggregated:.3f}/{mean_dist:.3f} = {aggregated / mean_dist:.3f}`"
+            f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = {aggregated / mean_intra_class_variance:.3f}`"
 
             f" Mode: `{explanation_mode}`"
 
@@ -185,7 +189,7 @@ def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode
 
 def intra_class_variances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
     """sorts the points by their labels, and returns a list of the variances by label """
-    intraclass_variances = []
+    intraclass_variances: List[float] = []
     for label in range(10):
         label_subset = [point for [point, lab] in labeled_points if lab == label]
         intraclass_variances.append(variance(label_subset))
