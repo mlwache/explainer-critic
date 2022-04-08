@@ -180,6 +180,17 @@ def compute_accuracy(classifier: nn.Module,
     return total_accuracy
 
 
+def loader_to_tensors(dataloader: DataLoader) -> Tuple[Tensor, Tensor]:
+    all_input_batches = []
+    all_label_batches = []
+    for input_batch, label_batch in dataloader:
+        all_input_batches.append(input_batch)
+        all_label_batches.append(label_batch)
+    input_tensor = torch.flatten(torch.stack(all_input_batches), start_dim=0, end_dim=1)
+    label_tensor = torch.flatten(torch.stack(all_label_batches), start_dim=0, end_dim=1)
+    return input_tensor, label_tensor
+
+
 class FastMNIST(MNIST):
     # code snippet from https://github.com/y0ast/pytorch-snippets/tree/main/fast_mnist
 

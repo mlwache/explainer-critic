@@ -26,5 +26,14 @@ def test_deterministic_dataset():
     assert (first_image[0][0] - (-0.4242)) < 0.0001
 
 
+def test_loaders_to_tensor():
+    utils.set_device()
+    loaders = utils.load_data(10,10,10,5,5)
+
+    inputs, labels = utils.loader_to_tensors(loaders.test)
+    assert inputs.size() == torch.Size([10,1,28,28])
+    assert labels.size() == torch.Size([10])
+
+
 if __name__ == '__main__':
     test_deterministic_dataset()
