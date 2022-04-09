@@ -18,7 +18,7 @@ def run_evaluation_experiments():
     if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
         state.n_models = 3
         state.explainers, state.test_loader, state.model_names = \
-            set_up_evaluation_experiments(state.n_models)
+            set_up_evaluation_experiments(state.n_models, n_test_samples=1000)
 
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
@@ -145,6 +145,7 @@ def set_up_evaluation_experiments(n_models: int,
                                   run_name: Optional[str] = None,
                                   loaders=None,
                                   used_for_training=False,
+                                  n_test_samples=10000
                                   ) -> Tuple[List[Explainer],
                                              DataLoader[Any],
                                              List[str]]:
@@ -167,10 +168,9 @@ def set_up_evaluation_experiments(n_models: int,
             model_paths.append("un-trained.pt")
         explainers[i].classifier.eval()
 
-    # get the full 10000 MNIST test samples
     loaders = utils.load_data(n_training_samples=1,
                               n_critic_samples=1,
-                              n_test_samples=1000,
+                              n_test_samples=n_test_samples,
                               batch_size=100,
                               test_batch_size=100)
 
