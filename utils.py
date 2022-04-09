@@ -25,6 +25,21 @@ def load_data_from_args(args: SimpleArgumentParser) -> Loaders:
                      test_batch_size=args.test_batch_size)
 
 
+def get_test_loader(n_samples: int, batch_size: int, random_permutation: bool = True) -> DataLoader:
+    full_test_set = FastMNIST('./data', train=False, download=True)
+    if random_permutation:
+        test_split = [n_samples, len(full_test_set) - n_samples]
+        test_set, _ = random_split(full_test_set, test_split)
+        return DataLoader(test_set, batch_size=batch_size)
+    else:
+        visualization_sets = []
+        for label in range(10):
+            visualization_sets.append(Subset(full_test_set,
+                                             torch.where(full_test_set.targets == label)[0][:n_samples // 10]))
+        visualization_set = ConcatDataset(visualization_sets)
+        return DataLoader(visualization_set, batch_size=batch_size)
+
+
 # noinspection PyShadowingNames
 def load_data(n_training_samples: int,
               n_critic_samples: int,
@@ -32,7 +47,6 @@ def load_data(n_training_samples: int,
               batch_size: int,
               test_batch_size: int) -> Loaders:
     training_and_critic_set = FastMNIST('./data', train=True, download=True)
-    full_test_set = FastMNIST('./data', train=False, download=True)
     # loads the data to the ./data folder
 
     # check that we have enough samples:
@@ -45,25 +59,13 @@ def load_data(n_training_samples: int,
     train_split = [n_training_samples, n_critic_samples, n_spare_samples]
     training_set, critic_set, _ = random_split(training_and_critic_set, train_split)
 
-    # get a randomly split set for testing, and an ordered subset for the visualization
-    test_split = [n_test_samples, len(full_test_set) - n_test_samples]
-
-    test_set: Subset
-    test_set, _ = random_split(full_test_set, test_split)
-    # for the visualization get 50 samples of the dataset, 5 for each label
-    visualization_sets = []
-    for label in range(10):
-        visualization_sets.append(Subset(full_test_set, torch.where(full_test_set.targets == label)[0][:4]))
-    visualization_set = ConcatDataset(visualization_sets)
-    n_vis_samples = visualization_set.cumulative_sizes[-1]
-
     loaders = Loaders(
         train=DataLoader(training_set, batch_size=batch_size, num_workers=0, shuffle=True),
         # for the critic set, I do the shuffling explicitly during training
         # in order to match samples to their respective explanations.
         critic=DataLoader(critic_set, batch_size=batch_size, num_workers=0),
-        test=DataLoader(test_set, batch_size=test_batch_size, num_workers=0),
-        visualization=DataLoader(visualization_set, batch_size=n_vis_samples, num_workers=0))
+        test=get_test_loader(n_test_samples, test_batch_size),
+        visualization=get_test_loader(n_samples=40, batch_size=40, random_permutation=False))
 
     return loaders
 
