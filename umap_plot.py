@@ -28,9 +28,10 @@ def get_umap_figure(data: Tensor, labels: Tensor) -> Figure:
 
     fig, ax = plt.subplots(figsize=(12, 10))
     color = labels
-    plt.scatter(embedding[:, 0], embedding[:, 1], c=color, cmap="Spectral", s=0.1)
-    plt.setp(ax, xticks=[], yticks=[])
-    plt.title("MNIST data embedded into two dimensions by UMAP", fontsize=18)
+    ax.scatter(embedding[:, 0], embedding[:, 1], c=color, cmap="Spectral", s=0.1)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title("MNIST data embedded into two dimensions by UMAP", fontsize=18)
 
     return fig
 
