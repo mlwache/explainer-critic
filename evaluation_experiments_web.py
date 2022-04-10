@@ -1,5 +1,5 @@
 from statistics import mean
-from typing import Any, Tuple, List, Dict, Optional
+from typing import Tuple, List, Dict
 
 import streamlit as st
 import torch
@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 import utils
-from explainer import Explainer
+from evaluation_experiments_console import set_up_evaluation_experiments
 
 
 def run_evaluation_experiments():
@@ -140,42 +140,6 @@ def get_visualization_loaders() -> List[DataLoader]:
     return visualization_loaders
 
 
-def set_up_evaluation_experiments(n_models: int,
-                                  run_name: Optional[str] = None,
-                                  loaders=None,
-                                  used_for_training=False,
-                                  n_test_samples=10000
-                                  ) -> Tuple[List[Explainer],
-                                             DataLoader[Any],
-                                             List[str]]:
-    args = utils.parse_args(overriding_args=[f'--run_name={run_name}'])
-    utils.setup(args, eval_mode=not used_for_training)
-
-    model_paths = ["trained_explainer.pt",
-                   "pre-trained.pt"]
-
-    explanation_modes = ["input_x_gradient",
-                         "input",
-                         "nothing"][0:n_models]
-    explainers: List[Explainer] = get_list_of_empty_explainers(explanation_modes=explanation_modes,
-                                                               loaders=loaders)
-    for i in range(n_models):
-        if i < len(model_paths):
-            explainers[i].load_state(f"models/{model_paths[i]}")
-        else:
-            print("Not enough models paths specified, using un-trained model instead.")
-            model_paths.append("un-trained.pt")
-        explainers[i].classifier.eval()
-
-    loaders = utils.load_data(n_training_samples=1,
-                              n_critic_samples=1,
-                              n_test_samples=n_test_samples,
-                              batch_size=100,
-                              test_batch_size=100)
-
-    return explainers, loaders.test, model_paths
-
-
 def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
     """sorts the points by their labels, and returns a list of the variances by label """
     intraclass_variances: List[float] = []
@@ -196,14 +160,6 @@ def variance(points: Tensor) -> float:
     # l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
     l_2_distances = torch.sqrt(differences_square.sum(dim=1))
     return torch.mean(l_2_distances).item()
-
-
-def get_list_of_empty_explainers(explanation_modes, loaders) -> List[Explainer]:
-    return [Explainer(loaders=loaders,
-                      optimizer_type=None,
-                      test_batch_to_visualize=None,
-                      model_path="",
-                      explanation_mode=explanation_mode) for explanation_mode in explanation_modes]
 
 
 if __name__ == '__main__':
