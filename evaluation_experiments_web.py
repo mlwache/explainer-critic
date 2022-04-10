@@ -30,12 +30,11 @@ def run_evaluation_experiments():
             aggregated_variance_in_this_model: Dict[str, float] = {}
             for mode in modes:
                 # first, get  all explanations/inputs of the test set
-                labeled_explanations: List[Tuple[Tensor, int]] = state.explainers[model_nr].get_labeled_explanations(
+                explanations_tensor, labels_tensor = state.explainers[model_nr].get_labeled_explanations(
                     state.test_loader,
                     mode)
-                explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
-                intra_class_variances_in_this_model[mode] = intra_class_variances(labeled_explanations)
-                aggregated_variance_in_this_model[mode] = variance(explanations)
+                intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor, labels_tensor)
+                aggregated_variance_in_this_model[mode] = variance(explanations_tensor)
             state.intra_class_variances.append(intra_class_variances_in_this_model)
             state.aggregated_variances.append(aggregated_variance_in_this_model)
 
@@ -177,18 +176,18 @@ def set_up_evaluation_experiments(n_models: int,
     return explainers, loaders.test, model_paths
 
 
-def intra_class_variances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
+def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
     """sorts the points by their labels, and returns a list of the variances by label """
     intraclass_variances: List[float] = []
     for label in range(10):
-        label_subset = [point for [point, lab] in labeled_points if lab == label]
+        label_subset = inputs[labels == label]
         intraclass_variances.append(variance(label_subset))
     return intraclass_variances
 
 
-def variance(points: List[Tensor]) -> float:
+def variance(points: Tensor) -> float:
     """computes the variance of a cluster of points"""
-    points = torch.stack(points)
+    # points = torch.stack(points)
     mean_point = torch.mean(points, dim=0)
     differences_to_mean = points - mean_point
     differences_as_vector = torch.flatten(differences_to_mean, start_dim=1, end_dim=3)

@@ -347,12 +347,15 @@ class Explainer:
         else:
             raise ValueError(f"optimizer '{self.optimizer_type}' invalid")
 
-    def get_labeled_explanations(self, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
+    def get_labeled_explanations(self, test_loader: DataLoader, mode: str) -> Tuple[Tensor, Tensor]:
         """get all explanations together with the labels, and don't combine them into batches."""
-        labeled_explanations = []
+        explanations = []
+        explanation_labels = []
         for inputs, labels in test_loader:
             explanation_batch: List[Tensor] = list(self.get_explanation_batch(inputs, labels, mode))
-            labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
-            labeled_explanations.extend(labeled_explanation_batch)
-        return labeled_explanations
-
+            # labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
+            explanations.extend(explanation_batch)
+            explanation_labels.extend(labels)
+        explanation_tensor = torch.stack(explanations)
+        label_tensor = torch.stack(explanation_labels)
+        return explanation_tensor, label_tensor

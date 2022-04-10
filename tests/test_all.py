@@ -58,7 +58,7 @@ def test_variance():
     tensor2 = torch.tensor([[0.0, 2], [4, 6]])
     tensor1 = torch.unsqueeze(tensor1, dim=2)
     tensor2 = torch.unsqueeze(tensor2, dim=2)
-    variance1 = variance([tensor1, tensor1])
+    variance1 = variance(torch.stack([tensor1, tensor1]))
     assert variance1 == 0
-    variance2 = variance([tensor1, tensor2])
+    variance2 = variance(torch.stack([tensor1, tensor2]))
     assert abs(variance2 - 1.87083) < 0.01
