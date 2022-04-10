@@ -346,3 +346,13 @@ class Explainer:
             self.optimizer = optim.Adam(self.classifier.parameters(), lr=learning_rate)
         else:
             raise ValueError(f"optimizer '{self.optimizer_type}' invalid")
+
+    def get_labeled_explanations(self, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
+        """get all explanations together with the labels, and don't combine them into batches."""
+        labeled_explanations = []
+        for inputs, labels in test_loader:
+            explanation_batch: List[Tensor] = list(self.get_explanation_batch(inputs, labels, mode))
+            labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
+            labeled_explanations.extend(labeled_explanation_batch)
+        return labeled_explanations
+

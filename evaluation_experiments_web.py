@@ -30,9 +30,9 @@ def run_evaluation_experiments():
             aggregated_variance_in_this_model: Dict[str, float] = {}
             for mode in modes:
                 # first, get  all explanations/inputs of the test set
-                labeled_explanations: List[Tuple[Tensor, int]] = get_labeled_explanations(state.explainers[model_nr],
-                                                                                          state.test_loader,
-                                                                                          mode)
+                labeled_explanations: List[Tuple[Tensor, int]] = state.explainers[model_nr].get_labeled_explanations(
+                    state.test_loader,
+                    mode)
                 explanations: List[Tensor] = [x for [x, _] in labeled_explanations]
                 intra_class_variances_in_this_model[mode] = intra_class_variances(labeled_explanations)
                 aggregated_variance_in_this_model[mode] = variance(explanations)
@@ -175,16 +175,6 @@ def set_up_evaluation_experiments(n_models: int,
                               test_batch_size=100)
 
     return explainers, loaders.test, model_paths
-
-
-def get_labeled_explanations(explainer: Explainer, test_loader: DataLoader, mode: str) -> List[Tuple[Tensor, int]]:
-    """get all explanations together with the labels, and don't combine them into batches."""
-    labeled_explanations = []
-    for inputs, labels in test_loader:
-        explanation_batch: List[Tensor] = list(explainer.get_explanation_batch(inputs, labels, mode))
-        labeled_explanation_batch: List[Tuple[Tensor, int]] = list(zip(explanation_batch, list(labels)))
-        labeled_explanations.extend(labeled_explanation_batch)
-    return labeled_explanations
 
 
 def intra_class_variances(labeled_points: List[Tuple[Tensor, int]]) -> List[float]:
