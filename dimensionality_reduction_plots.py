@@ -29,6 +29,7 @@ def show_plots():
         explanation_figure_pca, exp_ax_pca = get_pca_figure(explanations, labels)
         exp_ax_pca.set_title(f"Input x Gradient PCA-Embedding of the model {model_paths[i]}", fontsize=fontsize_pca)
         explanation_figure_pca.show()
+        # explanation_figure_pca.savefig(f"{model_paths[i]}.png", dpi=600)
 
         # UMAP on explanations
         print(f"UMAP embedding for model {model_paths[i]}:")
