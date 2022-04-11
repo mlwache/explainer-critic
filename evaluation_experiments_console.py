@@ -18,12 +18,12 @@ def run_console_evaluation_experiments():
     # critic_comparison(args.mode)
 
 
-
 def set_up_evaluation_experiments(n_models: int,
                                   run_name: Optional[str] = None,
                                   loaders=None,
                                   used_for_training=False,
-                                  n_test_samples=10000
+                                  n_test_samples=10000,
+                                  batch_size=100
                                   ) -> Tuple[List[Explainer],
                                              DataLoader,
                                              List[str]]:
@@ -53,6 +53,7 @@ def set_up_evaluation_experiments(n_models: int,
                               test_batch_size=100)
 
     return explainers, loaders.test, model_paths
+
 
 def get_list_of_empty_explainers(explanation_modes, loaders) -> List[Explainer]:
     return [Explainer(loaders=loaders,
