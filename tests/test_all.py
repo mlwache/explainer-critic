@@ -1,4 +1,3 @@
-import os
 
 import numpy as np
 import pytest
@@ -8,7 +7,7 @@ import utils
 from config import SimpleArgumentParser
 from experiments import train_only_critic, run_experiments
 from explainer import Explainer
-from evaluation_experiments_web import variance, intra_class_variances
+from evaluation_experiments_console import variance, intra_class_variances
 
 
 @pytest.fixture

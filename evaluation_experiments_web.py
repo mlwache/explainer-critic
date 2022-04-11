@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
 import utils
-from evaluation_experiments_console import set_up_evaluation_experiments
+from evaluation_experiments_console import set_up_evaluation_experiments, variance, intra_class_variances
 
 
 def run_evaluation_experiments():
@@ -138,29 +138,6 @@ def get_visualization_loaders() -> List[DataLoader]:
         visualization_loaders.append(DataLoader(subset, batch_size=2))
 
     return visualization_loaders
-
-
-def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
-    """sorts the points by their labels, and returns a list of the variances by label """
-    contained_labels = torch.unique(labels).tolist()
-    if len(contained_labels) != 10:
-        print("Warning: not all labels are represented in the data!")
-
-    intraclass_variances: List[float] = []
-    for label in contained_labels:
-        label_subset = inputs[labels == label]
-        intraclass_variances.append(variance(label_subset))
-    return intraclass_variances
-
-
-def variance(points: Tensor) -> float:
-    """computes the variance of a cluster of points"""
-    mean_point = torch.mean(points, dim=0)
-    differences_to_mean = points - mean_point
-    differences_as_vector = torch.flatten(differences_to_mean, start_dim=1, end_dim=3)
-    differences_square = differences_as_vector * differences_as_vector
-    l_2_distances = torch.sqrt(differences_square.sum(dim=1))
-    return torch.mean(l_2_distances).item()
 
 
 if __name__ == '__main__':
