@@ -142,12 +142,12 @@ def get_visualization_loaders() -> List[DataLoader]:
 
 def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
     """sorts the points by their labels, and returns a list of the variances by label """
-    n_labels = torch.unique(labels).size()[0]
-    if n_labels != 10:
+    contained_labels = torch.unique(labels).tolist()
+    if len(contained_labels) != 10:
         print("Warning: not all labels are represented in the data!")
 
     intraclass_variances: List[float] = []
-    for label in range(n_labels):
+    for label in contained_labels:
         label_subset = inputs[labels == label]
         intraclass_variances.append(variance(label_subset))
     return intraclass_variances
