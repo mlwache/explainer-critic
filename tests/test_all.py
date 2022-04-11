@@ -6,7 +6,7 @@ import utils
 from config import SimpleArgumentParser
 from experiments import train_only_critic, run_experiments
 from explainer import Explainer
-from evaluation_experiments_web import variance
+from evaluation_experiments_web import variance, intra_class_variances
 
 
 @pytest.fixture
@@ -62,3 +62,17 @@ def test_variance():
     assert variance1 == 0
     variance2 = variance(torch.stack([tensor1, tensor2]))
     assert abs(variance2 - 1.87083) < 0.01
+
+
+def test_intra_class_variance_simple_tensors():
+    tensor1 = torch.Tensor([[0, 1], [2, 3]])
+    tensor2 = torch.Tensor([[0, 2], [4, 6]])
+    tensor1 = torch.unsqueeze(tensor1, dim=2)
+    tensor2 = torch.unsqueeze(tensor2, dim=2)
+    inputs1 = torch.stack([tensor1, tensor2, tensor1, tensor2])
+    inputs2 = torch.stack([tensor1, tensor1, tensor2, tensor2])
+    labels = torch.tensor([0, 0, 1, 1])
+    assert variance(inputs1) == variance(inputs2)
+    total_var = variance(inputs1)
+    assert intra_class_variances(inputs1, labels) == [total_var, total_var]
+    assert intra_class_variances(inputs2, labels) == [0, 0]
