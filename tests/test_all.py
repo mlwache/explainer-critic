@@ -54,8 +54,8 @@ def test_explainer_makes_progress_with_only_classification(args):
 
 
 def test_variance():
-    tensor1 = torch.tensor([[0.0, 1], [2, 3]])
-    tensor2 = torch.tensor([[0.0, 2], [4, 6]])
+    tensor1 = torch.Tensor([[0, 1], [2, 3]])
+    tensor2 = torch.Tensor([[0, 2], [4, 6]])
     tensor1 = torch.unsqueeze(tensor1, dim=2)
     tensor2 = torch.unsqueeze(tensor2, dim=2)
     variance1 = variance(torch.stack([tensor1, tensor1]))
