@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import DataLoader
 
 import global_vars
+import utils
 from config import SimpleArgumentParser
 from critic import Critic
 from net import Net
@@ -45,6 +46,7 @@ class Explainer:
         self.classifier = Net().to(global_vars.DEVICE)
 
     def load_state(self, path: str):
+        path = os.path.join(utils.get_git_root(), path)
         if global_vars.DEVICE == 'cuda':
             checkpoint: dict = torch.load(path)
         elif global_vars.DEVICE == 'cpu':
