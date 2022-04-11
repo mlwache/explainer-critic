@@ -164,6 +164,10 @@ def get_git_root() -> str:
     return git_repo.git.rev_parse("--show-toplevel")
 
 
+def get_data_tensors(n_samples: int) -> Tuple[Tensor, Tensor]:
+    return loader_to_tensors(get_test_loader(n_samples=n_samples, batch_size=n_samples))
+
+
 def compute_accuracy(classifier: nn.Module,
                      data: Union[DataLoader, List[List[Tensor]]],
                      n_batches: Optional[int] = None):
