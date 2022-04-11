@@ -50,7 +50,7 @@ def set_up_evaluation_experiments(n_models: int,
                               n_critic_samples=1,
                               n_test_samples=n_test_samples,
                               batch_size=100,
-                              test_batch_size=100)
+                              test_batch_size=batch_size)
 
     return explainers, loaders.test, model_paths
 
