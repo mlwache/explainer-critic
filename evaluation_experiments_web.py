@@ -142,8 +142,12 @@ def get_visualization_loaders() -> List[DataLoader]:
 
 def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
     """sorts the points by their labels, and returns a list of the variances by label """
+    n_labels = torch.unique(labels).size()[0]
+    if n_labels != 10:
+        print("Warning: not all labels are represented in the data!")
+
     intraclass_variances: List[float] = []
-    for label in range(10):
+    for label in range(n_labels):
         label_subset = inputs[labels == label]
         intraclass_variances.append(variance(label_subset))
     return intraclass_variances
@@ -151,13 +155,10 @@ def intra_class_variances(inputs: Tensor, labels: Tensor) -> List[float]:
 
 def variance(points: Tensor) -> float:
     """computes the variance of a cluster of points"""
-    # points = torch.stack(points)
     mean_point = torch.mean(points, dim=0)
     differences_to_mean = points - mean_point
     differences_as_vector = torch.flatten(differences_to_mean, start_dim=1, end_dim=3)
     differences_square = differences_as_vector * differences_as_vector
-    # take the l_2 distance along the dimensions of the image
-    # l_2_distances = torch.norm(differences_to_mean, p=2, dim=[2, 3])
     l_2_distances = torch.sqrt(differences_square.sum(dim=1))
     return torch.mean(l_2_distances).item()
 
