@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 import pytest
 import torch
@@ -76,3 +78,9 @@ def test_intra_class_variance_simple_tensors():
     total_var = variance(inputs1)
     assert intra_class_variances(inputs1, labels) == [total_var, total_var]
     assert intra_class_variances(inputs2, labels) == [0, 0]
+
+
+def test_git_root():
+    git_root = utils.get_git_root()
+    # no assert because it's different for every device
+    print(f"git root: {git_root}")

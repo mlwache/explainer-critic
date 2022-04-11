@@ -4,6 +4,7 @@ import random
 from datetime import datetime
 from typing import Tuple, Any, Optional, List, Union
 
+import git
 import numpy as np
 import torch.cuda
 import torch.multiprocessing
@@ -155,6 +156,12 @@ def setup(args: SimpleArgumentParser, eval_mode: bool = False) -> None:
         writer = SummaryWriter(log_dir)
         global_vars.LOGGING = Logging(writer, args.run_name, args.log_interval, args.log_interval_accuracy,
                                       args.n_test_batches, args.log_interval_critic)
+
+
+def get_git_root() -> str:
+    current_path = os.path.dirname(os.path.realpath(__file__))
+    git_repo = git.Repo(current_path, search_parent_directories=True)
+    return git_repo.git.rev_parse("--show-toplevel")
 
 
 def compute_accuracy(classifier: nn.Module,
