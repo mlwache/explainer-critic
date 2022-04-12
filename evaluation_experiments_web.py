@@ -58,10 +58,18 @@ def run_evaluation_experiments():
     label = st.sidebar.slider(label="Label", min_value=0, max_value=9, value=5, step=1)
     n_img = st.sidebar.slider(label="Number of Images to show", min_value=1, max_value=10, value=2, step=1)
 
-    explanation_mode = st.sidebar.select_slider(label="Mode",
-                                                options=modes)
+    explanation_mode = st.sidebar.select_slider(label="Mode", options=modes)
 
-    inputs, labels = resize_batch(loader=visualization_loaders[label], new_batch_size=n_img)
+    input_types = ["black", "white", "gray", "noise"]
+    input_types.extend(list(map(str, range(10))))
+    input_type = st.sidebar.select_slider(label="Input Type", options=input_types)
+
+    if input_type.isdigit():
+        inputs, _ = resize_batch(loader=visualization_loaders[int(input_type)], new_batch_size=n_img)
+    else:
+        raise NotImplementedError
+    labels = torch.tensor([label]*n_img)
+
     columns = st.columns(state.n_models)
 
     for model_nr in range(state.n_models):  # compare two models
