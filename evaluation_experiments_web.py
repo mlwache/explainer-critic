@@ -16,10 +16,11 @@ def run_evaluation_experiments():
     """Runs some experiments on the models that are already trained."""
     modes = ["gradient", "input_x_gradient", "input"]
     if 'explainers' not in st.session_state:  # this part will run only once in the beginning.
+        state.show_ics = False  # I'm not fully convinced that this is the right metric, so don't use it for now.
         state.n_models = 3
         state.explainers, state.test_loader, state.model_names = \
             set_up_evaluation_experiments(state.n_models, n_test_samples=1000)
-        all_unnormalized_imgs = transform(utils.loader_to_tensors(state.test_loader)[0], "unnormalize")
+        all_unnormalized_images = transform(utils.loader_to_tensors(state.test_loader)[0], "unnormalize")
 
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
@@ -37,9 +38,10 @@ def run_evaluation_experiments():
                     state.test_loader,
                     mode)
                 means_for_this_model[mode] = torch.mean(torch.abs(explanations_tensor)).item()
-                means_for_this_model["input"] = torch.mean(torch.abs(all_unnormalized_imgs)).item()
-                intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor, labels_tensor)
-                aggregated_variance_in_this_model[mode] = variance(explanations_tensor)
+                means_for_this_model["input"] = torch.mean(torch.abs(all_unnormalized_images)).item()
+                if state.show_ics:
+                    intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor, labels_tensor)
+                    aggregated_variance_in_this_model[mode] = variance(explanations_tensor)
             state.means.append(means_for_this_model)
             state.intra_class_variances.append(intra_class_variances_in_this_model)
             state.aggregated_variances.append(aggregated_variance_in_this_model)
@@ -47,8 +49,8 @@ def run_evaluation_experiments():
             state.accuracies.append(utils.compute_accuracy(state.explainers[model_nr].classifier, state.test_loader))
         state.visualization_loaders = get_visualization_loaders()
 
-    assert len(state.aggregated_variances) == state.n_models
-    assert len(state.aggregated_variances[0]) == len(modes)
+    # assert len(state.aggregated_variances) == state.n_models
+    # assert len(state.aggregated_variances[0]) == len(modes)
 
     accuracies = st.session_state.accuracies
     visualization_loaders = st.session_state.visualization_loaders
@@ -68,17 +70,18 @@ def run_evaluation_experiments():
             f"Trained on: `{state.explainers[model_nr].explanation_mode}`"
             f" Prediction: `{state.explainers[model_nr].predict(inputs)}`"
             f"accuracy: `{accuracies[model_nr]}`"
-            st.write(f"Intra-Class Variance of Class `{label}` on {explanation_mode}:"
-                     f" `{state.intra_class_variances[model_nr][explanation_mode][label]:.3f}`")
-            mean_intra_class_variance = mean(state.intra_class_variances[model_nr][explanation_mode])
+            if state.show_ics:
+                st.write(f"Intra-Class Mean Distance to Mean of Class `{label}` on {explanation_mode}:"
+                         f" `{state.intra_class_variances[model_nr][explanation_mode][label]:.3f}`")
+                mean_intra_class_variance = mean(state.intra_class_variances[model_nr][explanation_mode])
 
-            aggregated = state.aggregated_variances[model_nr][explanation_mode]
-            f"Intra-Class Variance, averaged over classes `{mean_intra_class_variance:.3f}`"
-            f"Aggregated Variance: `{aggregated:.3f}`"
-            f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = {aggregated / mean_intra_class_variance:.3f}`"
+                aggregated = state.aggregated_variances[model_nr][explanation_mode]
+                f"Intra-Class Mean Distance to Mean, averaged over classes `{mean_intra_class_variance:.3f}`"
+                f"Aggregated Mean Distance to Mean: `{aggregated:.3f}`"
+                f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = {aggregated / mean_intra_class_variance:.3f}`"
 
             f"Mode: `{explanation_mode}`"
-            f"Mean of `{explanation_mode}`: {state.means[model_nr][explanation_mode]:.4f}"
+            f"Mean of `{explanation_mode}`: {state.means[model_nr][explanation_mode]:.5f}"
             assert abs(state.means[model_nr]["input"] - 0.1307) < 0.01
 
             inputs = transform(inputs, "normalize")
