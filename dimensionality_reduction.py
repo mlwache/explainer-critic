@@ -17,7 +17,7 @@ def show_plots():
     fontsize_pca = 12
     fontsize_umap = 22
     print("Setting up experiments...")
-    explainers, test_loader, model_paths = set_up_evaluation_experiments(3, n_test_samples=10000)
+    explainers, test_loader, model_paths = set_up_evaluation_experiments(n_models=3, n_test_samples=10000)
 
     for i in range(len(explainers)):
         explanations, labels = explainers[i].get_labeled_explanations(test_loader, "input_x_gradient")
