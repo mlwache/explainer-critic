@@ -19,13 +19,16 @@ def run_evaluation_experiments():
         state.n_models = 3
         state.explainers, state.test_loader, state.model_names = \
             set_up_evaluation_experiments(state.n_models, n_test_samples=1000)
+        all_unnormalized_imgs = transform(utils.loader_to_tensors(state.test_loader)[0], "unnormalize")
 
         # all of the following are lists, because I compute them for multiple models.
         state.accuracies = []
         state.intra_class_variances = []
         state.aggregated_variances = []
+        state.means = []
 
         for model_nr in range(state.n_models):
+            means_for_this_model: Dict[str, float] = {}
             intra_class_variances_in_this_model: Dict[str, List[float]] = {}
             aggregated_variance_in_this_model: Dict[str, float] = {}
             for mode in modes:
@@ -33,8 +36,11 @@ def run_evaluation_experiments():
                 explanations_tensor, labels_tensor = state.explainers[model_nr].get_labeled_explanations(
                     state.test_loader,
                     mode)
+                means_for_this_model[mode] = torch.mean(torch.abs(explanations_tensor)).item()
+                means_for_this_model["input"] = torch.mean(torch.abs(all_unnormalized_imgs)).item()
                 intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor, labels_tensor)
                 aggregated_variance_in_this_model[mode] = variance(explanations_tensor)
+            state.means.append(means_for_this_model)
             state.intra_class_variances.append(intra_class_variances_in_this_model)
             state.aggregated_variances.append(aggregated_variance_in_this_model)
 
@@ -71,7 +77,9 @@ def run_evaluation_experiments():
             f"Aggregated Variance: `{aggregated:.3f}`"
             f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = {aggregated / mean_intra_class_variance:.3f}`"
 
-            f" Mode: `{explanation_mode}`"
+            f"Mode: `{explanation_mode}`"
+            f"Mean of `{explanation_mode}`: {state.means[model_nr][explanation_mode]:.4f}"
+            assert abs(state.means[model_nr]["input"] - 0.1307) < 0.01
 
             inputs = transform(inputs, "normalize")
             state.explainers[model_nr].classifier.eval()
