@@ -87,7 +87,11 @@ def run_evaluation_experiments():
 
             explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(n_img):
-                st.image(transforms.ToPILImage()(explanation_batch[i][0].squeeze_(0)), width=200, output_format='PNG')
+                st_show_tensor(explanation_batch[i][0].squeeze_(0))
+
+
+def st_show_tensor(image: Tensor):
+    st.image(transforms.ToPILImage()(image), width=200, output_format='PNG')
 
 
 def resize_batch(loader: DataLoader, new_batch_size: int) -> Tuple[Tensor, Tensor]:
