@@ -61,7 +61,7 @@ def run_evaluation_experiments():
 
     explanation_mode = st.sidebar.select_slider(label="Mode", options=modes)
 
-    input_types = ["black", "white", "gray", "noise"]
+    input_types = ["black", "white", "noise"]
     input_types.extend(list(map(str, range(10))))
     input_type = st.sidebar.select_slider(label="Input Type", options=input_types)
 
@@ -101,8 +101,15 @@ def run_evaluation_experiments():
 
 
 def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int) -> Tensor:
+    size = [n_inputs, 1, 28, 28]
     if input_type.isdigit():
         inputs, _ = resize_batch(loader=loaders[int(input_type)], new_batch_size=n_inputs)
+    elif input_type == "black":
+        return torch.zeros(size)
+    elif input_type == "white":
+        return torch.ones(size)
+    elif input_type == "noise":
+        return torch.rand(size)
     else:
         raise NotImplementedError
     return inputs
@@ -144,7 +151,7 @@ def transform(images: Tensor, mode: str) -> Tensor:
     """
 
     # check if images are currently normalized or not
-    normalized = not (images >= 0).all()
+    normalized = not ((images >= 0).all() and (images <= 1).all())
 
     mean_mnist: float = 0.1307
     std_dev_mnist: float = 0.3081
