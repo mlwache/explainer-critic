@@ -65,7 +65,9 @@ def run_evaluation_experiments():
     input_types.extend(list(map(str, range(10))))
     input_type = st.sidebar.select_slider(label="Input Type", options=input_types)
 
-    inputs = get_inputs(input_type, visualization_loaders, n_inputs=n_img)
+    noise_level = st.sidebar.slider(label="Noise Level", min_value=0.0, max_value=1.0, step=0.01)
+
+    inputs = get_inputs(input_type, visualization_loaders, n_inputs=n_img, noise_level=noise_level)
     labels = torch.tensor([label] * n_img)
 
     columns = st.columns(state.n_models)
@@ -100,18 +102,23 @@ def run_evaluation_experiments():
                 st_show_tensor(explanation_batch[i][0].squeeze_(0))
 
 
-def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int) -> Tensor:
+def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int, noise_level: float) -> Tensor:
     size = [n_inputs, 1, 28, 28]
+    noise = (torch.rand(size) - 0.5) * 2 * noise_level
+    ones = torch.ones(size)
+    zeros = torch.zeros(size)
     if input_type.isdigit():
         inputs, _ = resize_batch(loader=loaders[int(input_type)], new_batch_size=n_inputs)
     elif input_type == "black":
-        return torch.zeros(size)
+        inputs = zeros
     elif input_type == "white":
-        return torch.ones(size)
+        inputs = ones
     elif input_type == "noise":
-        return torch.rand(size)
+        inputs = torch.rand(size)
     else:
         raise NotImplementedError
+    inputs = inputs + noise
+    inputs = torch.minimum(torch.maximum(inputs, zeros), ones)  # clip to [0,1]
     return inputs
 
 
