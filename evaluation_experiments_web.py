@@ -104,11 +104,11 @@ def run_evaluation_experiments():
 
 def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int, noise_level: float) -> Tensor:
     size = [n_inputs, 1, 28, 28]
-    noise = (torch.rand(size) - 0.5) * 2 * noise_level
     ones = torch.ones(size)
     zeros = torch.zeros(size)
     if input_type.isdigit():
         inputs, _ = resize_batch(loader=loaders[int(input_type)], new_batch_size=n_inputs)
+        inputs = transform(inputs, "unnormalize")
     elif input_type == "black":
         inputs = zeros
     elif input_type == "white":
@@ -117,9 +117,16 @@ def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int, noise_
         inputs = torch.rand(size)
     else:
         raise NotImplementedError
-    inputs = inputs + noise
-    inputs = torch.minimum(torch.maximum(inputs, zeros), ones)  # clip to [0,1]
-    return inputs
+    return add_noise(inputs, noise_level)
+
+
+def add_noise(inputs: Tensor, noise_level: float) -> Tensor:
+    size = inputs.size()
+    noise = (torch.rand(size) - 0.5) * 2 * noise_level
+    noisy_inputs = inputs + noise
+    # clip to [0,1]:
+    clipped_noisy_inputs = torch.minimum(torch.maximum(noisy_inputs, torch.zeros(size)), torch.ones(size))
+    return clipped_noisy_inputs
 
 
 def st_show_tensor(image: Tensor):
