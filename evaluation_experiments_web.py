@@ -40,7 +40,8 @@ def run_evaluation_experiments():
                 means_for_this_model[mode] = torch.mean(torch.abs(explanations_tensor)).item()
                 means_for_this_model["input"] = torch.mean(torch.abs(all_unnormalized_images)).item()
                 if state.show_ics:
-                    intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor, labels_tensor)
+                    intra_class_variances_in_this_model[mode] = intra_class_variances(explanations_tensor,
+                                                                                      labels_tensor)
                     aggregated_variance_in_this_model[mode] = variance(explanations_tensor)
             state.means.append(means_for_this_model)
             state.intra_class_variances.append(intra_class_variances_in_this_model)
@@ -64,11 +65,8 @@ def run_evaluation_experiments():
     input_types.extend(list(map(str, range(10))))
     input_type = st.sidebar.select_slider(label="Input Type", options=input_types)
 
-    if input_type.isdigit():
-        inputs, _ = resize_batch(loader=visualization_loaders[int(input_type)], new_batch_size=n_img)
-    else:
-        raise NotImplementedError
-    labels = torch.tensor([label]*n_img)
+    inputs = get_inputs(input_type, visualization_loaders, n_inputs=n_img)
+    labels = torch.tensor([label] * n_img)
 
     columns = st.columns(state.n_models)
 
@@ -86,7 +84,8 @@ def run_evaluation_experiments():
                 aggregated = state.aggregated_variances[model_nr][explanation_mode]
                 f"Intra-Class Mean Distance to Mean, averaged over classes `{mean_intra_class_variance:.3f}`"
                 f"Aggregated Mean Distance to Mean: `{aggregated:.3f}`"
-                f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = {aggregated / mean_intra_class_variance:.3f}`"
+                f"Ratio `{aggregated:.3f}/{mean_intra_class_variance:.3f} = " \
+                    f"{aggregated / mean_intra_class_variance:.3f}`"
 
             f"Mode: `{explanation_mode}`"
             f"Mean of `{explanation_mode}`: {state.means[model_nr][explanation_mode]:.5f}"
@@ -99,6 +98,14 @@ def run_evaluation_experiments():
             explanation_batch = transform(explanation_batch, "unnormalize")
             for i in range(n_img):
                 st_show_tensor(explanation_batch[i][0].squeeze_(0))
+
+
+def get_inputs(input_type: str, loaders: List[DataLoader], n_inputs: int) -> Tensor:
+    if input_type.isdigit():
+        inputs, _ = resize_batch(loader=loaders[int(input_type)], new_batch_size=n_inputs)
+    else:
+        raise NotImplementedError
+    return inputs
 
 
 def st_show_tensor(image: Tensor):
