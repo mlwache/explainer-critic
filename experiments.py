@@ -81,6 +81,7 @@ def run_experiments(overriding_args: Optional[List] = None):
 
 def train_only_critic(n_critic_batches, batch_size, critic_learning_rate,
                       explanations: List) -> Tuple[Loss, Loss]:
+    global_vars.global_step = 0
     critic_loader = utils.load_data(n_training_samples=1,
                                     n_critic_samples=n_critic_batches * batch_size,
                                     n_test_samples=1,
