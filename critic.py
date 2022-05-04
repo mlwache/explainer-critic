@@ -8,6 +8,7 @@ from torch.optim import Optimizer
 from torch.utils.data.dataloader import DataLoader
 
 import global_vars
+import utils
 from net import Net
 
 Loss = float
@@ -53,6 +54,11 @@ class Critic:
                                               inputs, labels, n_current_batch,
                                               optimizer))
             global_vars.global_step += 1
+            if n_current_batch % 5 == 0:  # use different values here
+                accuracy = utils.compute_accuracy(self.classifier, self.critic_loader)
+                global_vars.LOGGING.writer.add_scalar("Critic_Training/Accuracy",
+                                                      accuracy,
+                                                      global_step=global_vars.global_step)
 
         return losses[0], losses[-1], mean(losses)
 

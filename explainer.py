@@ -159,7 +159,7 @@ class Explainer:
                                      critic_lr: float,
                                      shuffle_critic: bool,
                                      explanation_mode: Optional[str] = None):
-
+        global_vars.global_step = 0 # delete this again.
         if explanation_mode is None:
             explanation_mode = self.explanation_mode
         self.critic = Critic(explanation_mode=explanation_mode,

@@ -69,11 +69,12 @@ def run_experiments(overriding_args: Optional[List] = None):
     elif args.training_mode == "in_turns":
         train_in_turns()
     elif args.training_mode == "one_critic_pass":
-        init_loss_pretraining, final_loss_pretraining = explainer.pretrain_from_args(args)
+        explainer.load_state("./models/trained_explainer.pt")
+        # init_loss_pretraining, final_loss_pretraining = explainer.pretrain_from_args(args)
         ImageHandler.add_gradient_images(test_batch_to_visualize, explainer, additional_caption="1: after pretraining")
         final_loss_pretraining = explainer.train_critic_on_explanations(critic_lr=args.learning_rate_critic,
                                                          shuffle_critic=not args.disable_critic_shuffling)
-        print(f"initial/mean loss (one critic pass): {init_loss_pretraining}, {final_loss_pretraining}")
+        # print(f"initial/mean loss (one critic pass): {init_loss_pretraining}, {final_loss_pretraining}")
     else:
         raise ValueError(f'Invalid training mode "{args.training_mode}"!')
     print(utils.colored(0, 200, 0, "Finished!"))
